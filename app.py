@@ -2,7 +2,9 @@ import streamlit as st
 import pandas as pd
 import datetime
 import os
+import json
 from openpyxl import load_workbook
+
 
 import gspread
 from google.oauth2.service_account import Credentials
@@ -43,8 +45,8 @@ SHEET_NAME = "Respostas Pesquisa"
 def salvar_google_sheets(respostas):
     try:
         escopos = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
-        creds_dict = st.secrets["google_service_account"]
-        creds = Credentials.from_service_account_info(creds_dict, scopes=escopos)
+        creds_dict = json.loads(str(st.secrets["google_service_account"]))
+        creds = Credentials.from_service_account_info(creds_dict, scopes=escopos)         
         cliente = gspread.authorize(creds)
         planilha = cliente.open(SHEET_NAME)
 
