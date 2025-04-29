@@ -45,7 +45,7 @@ SHEET_NAME = "Respostas Pesquisa"
 def salvar_google_sheets(respostas):
     try:
         escopos = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
-        creds_dict = json.loads(str(st.secrets["google_service_account"]))
+        creds_dict = dict(st.secrets["google_service_account"])
         creds = Credentials.from_service_account_info(creds_dict, scopes=escopos)         
         cliente = gspread.authorize(creds)
         planilha = cliente.open(SHEET_NAME)
