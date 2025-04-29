@@ -1,98 +1,55 @@
 import streamlit as st
 import pandas as pd
-from io import BytesIO
 import os
 
-st.set_page_config(page_title="Painel Administrativo", layout="wide")
-st.title("📊 Painel Administrativo de Respostas")
+st.set_page_config(page_title="Painel Admin - Localização", layout="wide")
+st.title("🛠️ Painel de Administração")
 
-ARQUIVO_XLSX = "respostas.xlsx"
-ABA_STATUS = "Status_Pesquisas"
+RESP_ARQ = "respostas.xlsx"
 
-if not os.path.exists(ARQUIVO_XLSX):
-    st.warning("⚠️ Nenhuma resposta registrada ainda.")
+# Carregar respostas
+if not os.path.exists(RESP_ARQ):
+    st.warning("⚠️ Nenhum dado encontrado ainda.")
     st.stop()
 
-try:
-    excel_file = pd.ExcelFile(ARQUIVO_XLSX)
-    abas = [a for a in excel_file.sheet_names if a != ABA_STATUS]
-except Exception as e:
-    st.error(f"⚠️ Erro ao ler o arquivo Excel: {e}")
-    st.stop()
-
-# Seleciona aba
-aba_escolhida = st.selectbox("🗂️ Selecione a pesquisa para visualizar:", abas)
-df_respostas = pd.read_excel(ARQUIVO_XLSX, sheet_name=aba_escolhida)
+df = pd.read_excel(RESP_ARQ)
 
 # Filtros
-with st.expander("🔍 Filtros"):
-    col1, col2, col3 = st.columns(3)
+st.sidebar.header("🔎 Filtros")
+lojas = sorted(df["LOJA"].dropna().unique())
+pesquisas = sorted(df["PESQUISA"].dropna().unique())
 
-    if 'USUÁRIO' in df_respostas.columns:
-        usuarios = df_respostas['USUÁRIO'].dropna().unique()
-        usuario_filtrado = col1.selectbox("Usuário", options=['Todos'] + list(usuarios))
-        if usuario_filtrado != 'Todos':
-            df_respostas = df_respostas[df_respostas['USUÁRIO'] == usuario_filtrado]
+filtro_loja = st.sidebar.multiselect("Filtrar por loja:", lojas, default=lojas)
+filtro_pesquisa = st.sidebar.multiselect("Filtrar por pesquisa:", pesquisas, default=pesquisas)
+filtro_data = st.sidebar.date_input("Filtrar por data:", [])
 
-    if 'DATA' in df_respostas.columns:
-        datas = pd.to_datetime(df_respostas['DATA'], errors='coerce')
-        data_min = datas.min()
-        data_max = datas.max()
-        data_inicial, data_final = col2.date_input("Intervalo de datas", value=[data_min, data_max])
-        df_respostas['DATA'] = pd.to_datetime(df_respostas['DATA'], errors='coerce')
-        df_respostas = df_respostas[(df_respostas['DATA'] >= pd.to_datetime(data_inicial)) & (df_respostas['DATA'] <= pd.to_datetime(data_final))]
+# Aplicar filtros
+df_filtros = df[
+    df["LOJA"].isin(filtro_loja) &
+    df["PESQUISA"].isin(filtro_pesquisa)
+]
 
-    if 'DESCRIÇÃO' in df_respostas.columns:
-        texto_busca = col3.text_input("Pesquisar por descrição")
-        if texto_busca:
-            df_respostas = df_respostas[df_respostas['DESCRIÇÃO'].str.contains(texto_busca, case=False, na=False)]
+if filtro_data:
+    if isinstance(filtro_data, list) and len(filtro_data) == 2:
+        df_filtros = df_filtros[
+            (pd.to_datetime(df_filtros["DATA"]) >= pd.to_datetime(filtro_data[0])) &
+            (pd.to_datetime(df_filtros["DATA"]) <= pd.to_datetime(filtro_data[1]))
+        ]
 
-st.subheader("📋 Respostas Registradas")
-st.dataframe(df_respostas, use_container_width=True)
+# Exibir dados
+st.subheader(f"📄 Respostas filtradas: {len(df_filtros)} registros")
+st.dataframe(df_filtros, use_container_width=True)
 
-# Download da aba filtrada
-buffer = BytesIO()
-with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-    df_respostas.to_excel(writer, index=False, sheet_name=aba_escolhida)
-buffer.seek(0)
-st.download_button(
-    label="📥 Baixar esta aba em Excel (com filtro aplicado)",
-    data=buffer,
-    file_name=f"{aba_escolhida.replace(' ', '_')}_respostas_filtradas.xlsx",
-    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-)
+# Download Excel
+def converter_para_excel(df):
+    from io import BytesIO
+    import openpyxl
 
-st.markdown("---")
-st.subheader("📈 Status Geral das Pesquisas")
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name="Respostas")
+    output.seek(0)
+    return output
 
-# Mostra aba de status
-try:
-    df_status = pd.read_excel(ARQUIVO_XLSX, sheet_name=ABA_STATUS)
-    df_status = df_status.dropna(subset=["PESQUISA"])
-    
-    def cor_status(val):
-        if val == "CONCLUÍDO":
-            return "background-color: lightgreen"
-        elif val == "PARCIAL":
-            return "background-color: orange"
-        return ""
-
-    st.dataframe(
-        df_status.style.applymap(cor_status, subset=["STATUS"]),
-        use_container_width=True
-    )
-
-    # Download do resumo
-    buf_resumo = BytesIO()
-    with pd.ExcelWriter(buf_resumo, engine="openpyxl") as writer:
-        df_status.to_excel(writer, index=False, sheet_name=ABA_STATUS)
-    buf_resumo.seek(0)
-    st.download_button(
-        label="📥 Baixar resumo geral em Excel",
-        data=buf_resumo,
-        file_name="resumo_status_pesquisas.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-
-except Exception as e:
-    st.error(f"Erro ao carregar status geral: {e}")
+excel_bytes = converter_para_excel(df_filtros)
+st.download_button("📥 Baixar Excel com os dados filtrados", data=excel_bytes, file_name="respostas_filtradas.xlsx")
