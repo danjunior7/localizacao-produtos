@@ -1,16 +1,20 @@
 import streamlit as st
 import pandas as pd
-import copy
 import streamlit_authenticator as stauth
 
-# Página de autenticação
-st.set_page_config(page_title="Painel Admin - Localização", layout="wide")
+# Configurar credenciais de autenticação sem deepcopy
+credentials = {
+    "usernames": {
+        "admin": {
+            "name": st.secrets["credentials"]["usernames"]["admin"]["name"],
+            "password": st.secrets["credentials"]["usernames"]["admin"]["password"]
+        }
+    }
+}
 
-# ⚠️ Importa uma cópia dos dados de autenticação para evitar erro de somente leitura
-credentials = copy.deepcopy(st.secrets["credentials"])
 cookie = dict(st.secrets["cookie"])
 
-# Autenticação
+# Inicializar autenticação
 authenticator = stauth.Authenticate(
     credentials,
     cookie["name"],
@@ -23,11 +27,12 @@ name, authentication_status, username = authenticator.login("Login", "main")
 if authentication_status is False:
     st.error("Usuário ou senha incorretos.")
 elif authentication_status is None:
-    st.warning("Por favor, insira suas credenciais.")
+    st.warning("Por favor, preencha as credenciais.")
 elif authentication_status:
     authenticator.logout("Sair", "sidebar")
     st.sidebar.success(f"Bem-vindo, {name} 👋")
 
+    st.set_page_config(page_title="Painel Admin - Localização", layout="wide")
     st.title("📊 Painel de Administração")
 
     RESP_ARQ = "respostas.xlsx"
@@ -36,7 +41,6 @@ elif authentication_status:
         st.error("⚠️ Credenciais do Google Sheets não encontradas.")
         st.stop()
 
-    # Exemplo de carregamento local (você pode trocar por conexão Google Sheets)
     try:
         df = pd.read_excel(RESP_ARQ)
         st.dataframe(df)
