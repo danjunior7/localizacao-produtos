@@ -18,9 +18,9 @@ data_preenchimento = st.date_input("Data de preenchimento:", value=datetime.date
 st.markdown("---")
 
 # 2. Carrega os dados principais (apenas o admin coloca os itens)
-@st.cache_data(ttl=0)
 def carregar_dados():
     return pd.read_excel("Feedback_Localizacao.xlsx")
+
 
 try:
     df = carregar_dados()
