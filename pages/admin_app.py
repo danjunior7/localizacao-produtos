@@ -1,11 +1,11 @@
 import streamlit as st
 import pandas as pd
 import os
-import copy
+import json
 import streamlit_authenticator as stauth
 
-# Carregar secrets com autenticação
-credentials = copy.deepcopy(st.secrets["credentials"])
+# Carregar credentials do secrets e converter para dict normal
+credentials = json.loads(str(st.secrets["credentials"]))
 cookie = dict(st.secrets["cookie"])
 
 # Setup do autenticador
@@ -51,7 +51,7 @@ elif authentication_status:
     if pesquisa_sel != "Todas":
         df = df[df["PESQUISA"] == pesquisa_sel]
 
-    st.subheader("📊 Respostas Registradas")
+    st.subheader("📈 Respostas Registradas")
     st.dataframe(df, use_container_width=True)
 
     st.download_button(
