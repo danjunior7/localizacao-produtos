@@ -2,7 +2,10 @@ import streamlit as st
 import pandas as pd
 import streamlit_authenticator as stauth
 
-# Configurar credenciais de autenticação sem deepcopy
+# Configuração da página
+st.set_page_config(page_title="Painel Admin", layout="wide")
+
+# Carregar credenciais do secrets
 credentials = {
     "usernames": {
         "admin": {
@@ -14,7 +17,7 @@ credentials = {
 
 cookie = dict(st.secrets["cookie"])
 
-# Inicializar autenticação
+# Inicialização da autenticação
 authenticator = stauth.Authenticate(
     credentials,
     cookie["name"],
@@ -22,18 +25,17 @@ authenticator = stauth.Authenticate(
     cookie["expiry_days"]
 )
 
-name, authentication_status, username = authenticator.login("Login", location="main")
-
+# Login
+name, authentication_status, username = authenticator.login("Login", "main")
 
 if authentication_status is False:
     st.error("Usuário ou senha incorretos.")
 elif authentication_status is None:
-    st.warning("Por favor, preencha as credenciais.")
+    st.warning("Por favor, insira suas credenciais.")
 elif authentication_status:
     authenticator.logout("Sair", "sidebar")
     st.sidebar.success(f"Bem-vindo, {name} 👋")
 
-    st.set_page_config(page_title="Painel Admin - Localização", layout="wide")
     st.title("📊 Painel de Administração")
 
     RESP_ARQ = "respostas.xlsx"
