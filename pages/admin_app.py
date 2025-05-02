@@ -1,11 +1,11 @@
 import streamlit as st
 import pandas as pd
 import os
-import json
+
 import streamlit_authenticator as stauth
 
 # Carregar credentials do secrets e converter para dict normal
-credentials = json.loads(str(st.secrets["credentials"]))
+credentials = st.secrets["credentials"]
 cookie = dict(st.secrets["cookie"])
 
 # Setup do autenticador
