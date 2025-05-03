@@ -1,7 +1,11 @@
 import streamlit as st
+import pandas as pd
 import streamlit_authenticator as stauth
 
-# Cria o objeto de autenticação utilizando as credenciais do secrets.toml
+# Configuração da página
+st.set_page_config(page_title="Painel Admin", layout="wide")
+
+# Autenticação
 authenticator = stauth.Authenticate(
     dict(st.secrets["credentials"]),
     st.secrets["cookie"]["name"],
@@ -10,12 +14,24 @@ authenticator = stauth.Authenticate(
     st.secrets["preauthorized"]
 )
 
-# Renderiza o formulário de login no corpo principal da página
 nome, autenticado, usuario = authenticator.login("Login", "main")
 
 if autenticado:
-    st.success(f"Bem-vindo, *{nome}*!")
-    # (Coloque aqui o conteúdo da aplicação que deve ser exibido após login bem-sucedido)
+    authenticator.logout("Sair", "sidebar")
+    st.sidebar.success(f"Bem-vindo, {nome} 👋")
+
+    st.title("📊 Painel de Administração")
+
+    # Carregar e exibir arquivo Excel
+    try:
+        df = pd.read_excel("respostas.xlsx")
+        st.subheader("📄 Respostas coletadas")
+        st.dataframe(df, use_container_width=True)
+    except FileNotFoundError:
+        st.warning("Arquivo 'respostas.xlsx' não encontrado.")
+    except Exception as e:
+        st.error(f"Erro ao carregar os dados: {e}")
+
 elif autenticado is False:
     st.error("Usuário ou senha incorretos.")
 elif autenticado is None:
