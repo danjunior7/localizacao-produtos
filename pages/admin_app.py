@@ -5,16 +5,28 @@ import streamlit_authenticator as stauth
 # Configuração da página
 st.set_page_config(page_title="Painel Admin", layout="wide")
 
-# Autenticação: usa diretamente o secrets
-credentials = st.secrets["credentials"]
-cookie = st.secrets["cookie"]
+# Copiar os dados do secrets para dicionário mutável
+credentials = {
+    "usernames": {
+        "admin": {
+            "name": st.secrets["credentials"]["usernames"]["admin"]["name"],
+            "password": st.secrets["credentials"]["usernames"]["admin"]["password"]
+        }
+    }
+}
+
+cookie = {
+    "name": st.secrets["cookie"]["name"],
+    "key": st.secrets["cookie"]["key"],
+    "expiry_days": st.secrets["cookie"]["expiry_days"]
+}
 
 # Inicialização da autenticação
 authenticator = stauth.Authenticate(
     credentials,
-    cookie.name,
-    cookie.key,
-    cookie.expiry_days
+    cookie["name"],
+    cookie["key"],
+    cookie["expiry_days"]
 )
 
 # Login
