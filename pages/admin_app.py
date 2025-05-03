@@ -51,7 +51,7 @@ elif authentication_status:
         client = gspread.authorize(credentials_google)
 
         # Substitua abaixo pelo nome da sua planilha
-        sheet = client.open("Feedback_Localizacao").sheet1
+        sheet = client.open("Respostas Pesquisa").sheet1
         data = sheet.get_all_records()
         df = pd.DataFrame(data)
 
