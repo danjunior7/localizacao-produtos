@@ -1,48 +1,22 @@
 import streamlit as st
-import pandas as pd
 import streamlit_authenticator as stauth
 
-st.set_page_config(page_title="Painel Admin", layout="wide")
-
-# Carrega credenciais direto do secrets (sem usar deepcopy)
-credentials = {
-    "usernames": {
-        "admin": {
-            "name": st.secrets["credentials"]["usernames"]["admin"]["name"],
-            "password": st.secrets["credentials"]["usernames"]["admin"]["password"]
-        }
-    }
-}
-
-cookie = {
-    "name": st.secrets["cookie"]["name"],
-    "key": st.secrets["cookie"]["key"],
-    "expiry_days": st.secrets["cookie"]["expiry_days"]
-}
-
-# Autenticação
+# Cria o objeto de autenticação utilizando as credenciais do secrets.toml
 authenticator = stauth.Authenticate(
-    credentials,
-    cookie["name"],
-    cookie["key"],
-    cookie["expiry_days"]
+    dict(st.secrets["credentials"]),
+    st.secrets["cookie"]["name"],
+    st.secrets["cookie"]["key"],
+    st.secrets["cookie"]["expiry_days"],
+    st.secrets["preauthorized"]
 )
 
-name, authentication_status, username = authenticator.login("Login", location="main")
+# Renderiza o formulário de login no corpo principal da página
+nome, autenticado, usuario = authenticator.login("Login", "main")
 
-if authentication_status is False:
+if autenticado:
+    st.success(f"Bem-vindo, *{nome}*!")
+    # (Coloque aqui o conteúdo da aplicação que deve ser exibido após login bem-sucedido)
+elif autenticado is False:
     st.error("Usuário ou senha incorretos.")
-elif authentication_status is None:
-    st.warning("Por favor, insira suas credenciais.")
-elif authentication_status:
-    authenticator.logout("Sair", "sidebar")
-    st.sidebar.success(f"Bem-vindo, {name} 👋")
-
-    st.title("📊 Painel de Administração")
-
-    # Exemplo: carregamento de dados
-    try:
-        df = pd.read_excel("respostas.xlsx")
-        st.dataframe(df)
-    except Exception as e:
-        st.error(f"Erro ao carregar dados: {e}")
+elif autenticado is None:
+    st.warning("Por favor, insira seu usuário e senha para continuar.")
