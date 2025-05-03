@@ -1,38 +1,64 @@
 import streamlit as st
 import pandas as pd
 import streamlit_authenticator as stauth
+import gspread
+from google.oauth2 import service_account
 
-# Configuração da página
 st.set_page_config(page_title="Painel Admin", layout="wide")
 
-# Autenticação
+# 🔐 Credenciais
+credentials = {
+    "usernames": {
+        "admin": {
+            "name": st.secrets["credentials"]["usernames"]["admin"]["name"],
+            "password": st.secrets["credentials"]["usernames"]["admin"]["password"]
+        }
+    }
+}
+
+cookie = {
+    "name": st.secrets["cookie"]["name"],
+    "key": st.secrets["cookie"]["key"],
+    "expiry_days": st.secrets["cookie"]["expiry_days"]
+}
+
+# 🔑 Autenticação
 authenticator = stauth.Authenticate(
-    dict(st.secrets["credentials"]),
-    st.secrets["cookie"]["name"],
-    st.secrets["cookie"]["key"],
-    st.secrets["cookie"]["expiry_days"],
-    st.secrets["preauthorized"]
+    credentials,
+    cookie["name"],
+    cookie["key"],
+    cookie["expiry_days"]
 )
 
-nome, autenticado, usuario = authenticator.login("Login", "main")
+name, authentication_status, username = authenticator.login("Login", location="main")
 
-if autenticado:
+if authentication_status is False:
+    st.error("Usuário ou senha incorretos.")
+elif authentication_status is None:
+    st.warning("Por favor, insira suas credenciais.")
+elif authentication_status:
     authenticator.logout("Sair", "sidebar")
-    st.sidebar.success(f"Bem-vindo, {nome} 👋")
-
+    st.sidebar.success(f"Bem-vindo, {name} 👋")
     st.title("📊 Painel de Administração")
 
-    # Carregar e exibir arquivo Excel
+    # ✅ Conectar ao Google Sheets
     try:
-        df = pd.read_excel("respostas.xlsx")
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        credentials_google = service_account.Credentials.from_service_account_info(
+            st.secrets["google_service_account"],
+            scopes=scope
+        )
+        client = gspread.authorize(credentials_google)
+
+        # Substitua abaixo pelo nome da sua planilha
+        sheet = client.open("Feedback_Localizacao").sheet1
+        data = sheet.get_all_records()
+        df = pd.DataFrame(data)
+
         st.subheader("📄 Respostas coletadas")
         st.dataframe(df, use_container_width=True)
-    except FileNotFoundError:
-        st.warning("Arquivo 'respostas.xlsx' não encontrado.")
-    except Exception as e:
-        st.error(f"Erro ao carregar os dados: {e}")
 
-elif autenticado is False:
-    st.error("Usuário ou senha incorretos.")
-elif autenticado is None:
-    st.warning("Por favor, insira seu usuário e senha para continuar.")
+        st.download_button("📥 Baixar respostas", df.to_csv(index=False).encode('utf-8'), file_name="respostas.csv", mime="text/csv")
+
+    except Exception as e:
+        st.error(f"Erro ao carregar os dados do Google Sheets: {e}")
