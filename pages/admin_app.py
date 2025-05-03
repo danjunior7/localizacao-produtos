@@ -5,35 +5,27 @@ import streamlit_authenticator as stauth
 # Configuração da página
 st.set_page_config(page_title="Painel Admin", layout="wide")
 
-# Carregar credenciais do secrets
-credentials = {
-    "usernames": {
-        "admin": {
-            "name": st.secrets["credentials"]["usernames"]["admin"]["name"],
-            "password": st.secrets["credentials"]["usernames"]["admin"]["password"]
-        }
-    }
-}
-
-cookie = dict(st.secrets["cookie"])
+# Autenticação: usa diretamente o secrets
+credentials = st.secrets["credentials"]
+cookie = st.secrets["cookie"]
 
 # Inicialização da autenticação
 authenticator = stauth.Authenticate(
     credentials,
-    cookie["name"],
-    cookie["key"],
-    cookie["expiry_days"]
+    cookie.name,
+    cookie.key,
+    cookie.expiry_days
 )
 
 # Login
-name, authentication_status, username = authenticator.login("Login", "main")
+name, authentication_status, username = authenticator.login("Login", location="main")
 
 if authentication_status is False:
     st.error("Usuário ou senha incorretos.")
 elif authentication_status is None:
     st.warning("Por favor, insira suas credenciais.")
 elif authentication_status:
-    authenticator.logout("Sair", "sidebar")
+    authenticator.logout("Sair", location="sidebar")
     st.sidebar.success(f"Bem-vindo, {name} 👋")
 
     st.title("📊 Painel de Administração")
