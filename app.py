@@ -9,10 +9,20 @@ from google.oauth2.service_account import Credentials
 st.set_page_config(page_title="Localização de Produtos", layout="wide")
 st.title("📦 Localização de Produtos nas Lojas")
 
+# Esconde o menu lateral inicialmente
+st.markdown("""
+    <style>
+        [data-testid="stSidebar"][aria-expanded="true"] {
+            width: 0 !important;
+            margin-left: -250px;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 # Teste de secrets
 try:
     email_bot = st.secrets["google_service_account"]["client_email"]
-    st.info(f"🔍 Secrets carregados com sucesso! Bot: {email_bot}")
+    #st.info(f"🔍 Secrets carregados com sucesso! Bot: {email_bot}")
 except:
     st.warning("⚠️ Não foi possível carregar os secrets.")
 
