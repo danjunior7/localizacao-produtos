@@ -12,8 +12,13 @@ st.title("📦 Localização de Produtos nas Lojas")
 # Esconde o menu lateral inicialmente
 st.markdown("""
     <style>
+        [data-testid="stSidebar"] {
+            transition: margin-left 0.3s ease-in-out;
+        }
         [data-testid="stSidebar"][aria-expanded="true"] {
-            width: 0 !important;
+            margin-left: 0;
+        }
+        [data-testid="stSidebar"][aria-expanded="false"] {
             margin-left: -250px;
         }
     </style>
