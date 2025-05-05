@@ -10,19 +10,17 @@ st.set_page_config(page_title="Localização de Produtos", layout="wide")
 st.title("📦 Localização de Produtos nas Lojas")
 
 # Esconde o menu lateral inicialmente
+# Oculta a sidebar no carregamento inicial (modo desktop)
 st.markdown("""
     <style>
-        [data-testid="stSidebar"] {
-            transition: margin-left 0.3s ease-in-out;
-        }
-        [data-testid="stSidebar"][aria-expanded="true"] {
-            margin-left: 0;
-        }
-        [data-testid="stSidebar"][aria-expanded="false"] {
-            margin-left: -250px;
+        @media (min-width: 768px) {
+            section[data-testid="stSidebar"] {
+                display: none;
+            }
         }
     </style>
 """, unsafe_allow_html=True)
+
 
 # Teste de secrets
 try:
