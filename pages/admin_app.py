@@ -41,8 +41,12 @@ elif authentication_status:
     st.sidebar.success(f"Bem-vindo, {name} 👋")
     st.title("📊 Painel de Administração")
 
-    # ✅ Conectar ao Google Sheets
+    # 🗂️ Seleção de Loja (aba da planilha)
+    abas_lojas = ["LISBOA", "JOQUEI", "MPE 1", "MPE 2", "PAN", "MARACANAU"]
+    loja = st.selectbox("Selecione a loja", abas_lojas)
+
     try:
+        # 📎 Conectar ao Google Sheets
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         credentials_google = service_account.Credentials.from_service_account_info(
             st.secrets["google_service_account"],
@@ -50,15 +54,21 @@ elif authentication_status:
         )
         client = gspread.authorize(credentials_google)
 
-        # Substitua abaixo pelo nome da sua planilha
-        sheet = client.open("Respostas Pesquisa").sheet1
+        # 📄 Abrir planilha e aba correspondente
+        sheet = client.open("Respostas Pesquisa").worksheet(loja)
         data = sheet.get_all_records()
         df = pd.DataFrame(data)
 
-        st.subheader("📄 Respostas coletadas")
+        st.subheader(f"📄 Respostas da loja: {loja}")
         st.dataframe(df, use_container_width=True)
 
-        st.download_button("📥 Baixar respostas", df.to_csv(index=False).encode('utf-8'), file_name="respostas.csv", mime="text/csv")
+        # ⬇️ Download dos dados
+        st.download_button(
+            label="📥 Baixar respostas",
+            data=df.to_csv(index=False).encode('utf-8'),
+            file_name=f"respostas_{loja.lower()}.csv",
+            mime="text/csv"
+        )
 
     except Exception as e:
-        st.error(f"Erro ao carregar os dados do Google Sheets: {e}")
+        st.error(f"Erro ao carregar os dados da aba '{loja}': {e}")
