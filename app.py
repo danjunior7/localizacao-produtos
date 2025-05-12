@@ -9,28 +9,25 @@ from google.oauth2.service_account import Credentials
 st.set_page_config(
     page_title="Localização de Produtos",
     layout="wide",
-    initial_sidebar_state="expanded"  # <- essa é a chave
+    initial_sidebar_state="expanded"
 )
 
 st.title("📦 Localização de Produtos nas Lojas")
 
-# Esconde o menu lateral inicialmente
-# Oculta a sidebar no carregamento inicial (modo desktop)
+# Aplica estilo CSS para esconder o menu só no celular
 st.markdown("""
     <style>
-        @media (min-width: 768px) {
-            section[data-testid="stSidebar"] {
-                display: none;
-            }
+    @media (max-width: 768px) {
+        section[data-testid="stSidebar"] {
+            display: none;
         }
+    }
     </style>
 """, unsafe_allow_html=True)
-
 
 # Teste de secrets
 try:
     email_bot = st.secrets["google_service_account"]["client_email"]
-    #st.info(f"🔍 Secrets carregados com sucesso! Bot: {email_bot}")
 except:
     st.warning("⚠️ Não foi possível carregar os secrets.")
 
@@ -54,7 +51,7 @@ if "PESQUISA" not in df.columns:
     st.error("❌ A planilha precisa da coluna 'PESQUISA'.")
     st.stop()
 
-# Carregar respostas locais (backup)
+# Carregar respostas locais
 RESP_ARQ = "respostas.xlsx"
 expected_cols = [
     "USUÁRIO", "DATA", "PESQUISA", "LOJA", "DESCRIÇÃO", "COD.INT", "EAN", "ESTOQUE",
@@ -90,11 +87,9 @@ def salvar_google_sheets(respostas):
                 aba = planilha.worksheet(nome_aba)
             except gspread.exceptions.WorksheetNotFound:
                 aba = planilha.add_worksheet(title=nome_aba, rows="1000", cols="20")
-                cabecalhos = list(resposta.keys())
-                aba.append_row(cabecalhos)
+                aba.append_row(list(resposta.keys()))
 
-            valores = list(resposta.values())
-            aba.append_row(valores)
+            aba.append_row(list(resposta.values()))
 
         st.success("✅ Respostas enviadas para o Google Sheets com sucesso!")
 
@@ -159,7 +154,6 @@ else:
     if st.button("📥 Salvar respostas"):
         df_novas = pd.DataFrame(respostas)
 
-        # Backup local
         if os.path.exists(RESP_ARQ):
             with pd.ExcelWriter(RESP_ARQ, engine='openpyxl', mode='a', if_sheet_exists='overlay') as writer:
                 wb = writer.book
@@ -169,5 +163,4 @@ else:
         else:
             df_novas.to_excel(RESP_ARQ, index=False)
 
-        # Google Sheets
         salvar_google_sheets(respostas)
