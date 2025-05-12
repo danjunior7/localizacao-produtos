@@ -19,11 +19,17 @@ st.markdown("""
     <style>
     @media (max-width: 768px) {
         section[data-testid="stSidebar"] {
-            display: none;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease-in-out;
+            position: fixed;
+        }
+        section[data-testid="stSidebar"][aria-expanded="true"] {
+            transform: translateX(0%);
         }
     }
     </style>
 """, unsafe_allow_html=True)
+
 
 # Teste de secrets
 try:
