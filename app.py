@@ -9,10 +9,10 @@ from google.oauth2.service_account import Credentials
 st.set_page_config(
     page_title="Localização de Produtos",
     layout="wide",
-    initial_sidebar_state="auto"  # deixa a sidebar responsiva
+    initial_sidebar_state="auto"
 )
 
-# CSS que oculta sidebar no celular, mas mantém botão funcionando
+# CSS para esconder o menu no celular, mas manter funcionalidade do botão
 st.markdown("""
     <style>
     @media (max-width: 768px) {
@@ -30,23 +30,18 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-
-# Teste de secrets
-try:
-    email_bot = st.secrets["google_service_account"]["client_email"]
-except:
-    st.warning("⚠️ Não foi possível carregar os secrets.")
+st.title("📦 Localização de Produtos nas Lojas")
 
 # Identificação
 st.subheader("👤 Identificação")
-nome_usuario = st.text_input("Digite seu nome:")
-data_preenchimento = st.date_input("Data de preenchimento:", value=datetime.date.today())
+nome_usuario = st.text_input("Digite seu nome:", key="nome_usuario")
+data_preenchimento = st.date_input("Data de preenchimento:", value=datetime.date.today(), key="data_preenchimento")
 
 if not nome_usuario:
     st.warning("⚠️ Por favor, digite seu nome para continuar.")
     st.stop()
 
-# Carregar planilha local
+# Carrega dados
 try:
     df = pd.read_excel("Feedback_Localizacao.xlsx")
 except FileNotFoundError:
@@ -56,26 +51,6 @@ except FileNotFoundError:
 if "PESQUISA" not in df.columns:
     st.error("❌ A planilha precisa da coluna 'PESQUISA'.")
     st.stop()
-
-# Carregar respostas locais
-RESP_ARQ = "respostas.xlsx"
-expected_cols = [
-    "USUÁRIO", "DATA", "PESQUISA", "LOJA", "DESCRIÇÃO", "COD.INT", "EAN", "ESTOQUE",
-    "DIAS SEM MOVIMENTAÇÃO", "SEÇÃO", "LOCAL INFORMADO"
-]
-
-if os.path.exists(RESP_ARQ):
-    try:
-        df_resp = pd.read_excel(RESP_ARQ)
-        for col in expected_cols:
-            if col not in df_resp.columns:
-                df_resp[col] = None
-        df_resp = df_resp[expected_cols]
-    except:
-        st.warning("⚠️ Arquivo 'respostas.xlsx' está corrompido. Iniciando vazio.")
-        df_resp = pd.DataFrame(columns=expected_cols)
-else:
-    df_resp = pd.DataFrame(columns=expected_cols)
 
 # Função para salvar no Google Sheets
 def salvar_google_sheets(respostas):
@@ -102,31 +77,28 @@ def salvar_google_sheets(respostas):
     except Exception as e:
         st.error(f"Erro ao salvar no Google Sheets: {e}")
 
-# Opções de pesquisa
+# Pesquisa
 pesquisas = sorted(df["PESQUISA"].dropna().unique())
 options = []
 mapa = {}
 
 for pesq in pesquisas:
-    total = len(df[df["PESQUISA"] == pesq])
-    responded = df_resp[df_resp["PESQUISA"] == pesq].shape[0]
-    badge = "🆕" if responded == 0 else ("🔴" if responded < total else "✔️")
-    label = f"{pesq} {badge}"
+    label = f"{pesq}"
     options.append(label)
     mapa[label] = pesq
 
 st.subheader("🔍 Selecione a pesquisa")
-selecionado = st.selectbox("Escolha a pesquisa:", options)
+selecionado = st.selectbox("Escolha a pesquisa:", options, key="pesquisa")
 pesquisa_selecionada = mapa[selecionado]
 
-# Exibir e preencher os produtos da pesquisa
+# Exibir os itens da pesquisa
+respostas = []
 df_filtrado = df[df["PESQUISA"] == pesquisa_selecionada].reset_index(drop=True)
 
 if df_filtrado.empty:
     st.warning("⚠️ Nenhum produto encontrado nesta pesquisa.")
 else:
     st.subheader(f"📝 Pesquisa: {pesquisa_selecionada}")
-    respostas = []
 
     for idx, row in df_filtrado.iterrows():
         st.markdown("---")
@@ -137,10 +109,14 @@ else:
         st.markdown(f"**🏷️ EAN:** {row.get('EAN', '---')}")
         st.markdown(f"**📍 Seção:** {row.get('SEÇÃO', '---')}")
 
+        local_key = f"local_{idx}"
+        if local_key not in st.session_state:
+            st.session_state[local_key] = ""
+
         local = st.selectbox(
             f"📍 Onde está o produto ({row['DESCRIÇÃO']}):",
             ["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"],
-            key=f"local_{idx}"
+            key=local_key
         )
 
         respostas.append({
@@ -157,9 +133,10 @@ else:
             "LOCAL INFORMADO": local
         })
 
-    if st.button("📥 Salvar respostas"):
+    if st.button("📅 Salvar respostas"):
         df_novas = pd.DataFrame(respostas)
 
+        RESP_ARQ = "respostas.xlsx"
         if os.path.exists(RESP_ARQ):
             with pd.ExcelWriter(RESP_ARQ, engine='openpyxl', mode='a', if_sheet_exists='overlay') as writer:
                 wb = writer.book
