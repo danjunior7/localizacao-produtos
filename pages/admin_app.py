@@ -1,95 +1,100 @@
 import streamlit as st
 import pandas as pd
-import streamlit_authenticator as stauth
-import gspread
-from google.oauth2 import service_account
-import glob
+import plotly.express as px
+import datetime
 import os
+import streamlit_authenticator as stauth
+from google.oauth2.service_account import Credentials
+import gspread
 
-# Configuração da página
-st.set_page_config(page_title="Painel Admin", layout="wide")
+# ----------- CONFIGURAÇÃO INICIAL ----------
+st.set_page_config(page_title="Painel Administrativo", layout="wide")
 
-# 🔐 Credenciais
-credentials = {
-    "usernames": {
-        "admin": {
-            "name": st.secrets["credentials"]["usernames"]["admin"]["name"],
-            "password": st.secrets["credentials"]["usernames"]["admin"]["password"]
+# CSS para manter o menu visível no PC e esconder no celular
+st.markdown("""
+    <style>
+    @media (max-width: 768px) {
+        section[data-testid="stSidebar"] {
+            transform: translateX(-100%);
+            transition: all 0.3s ease-in-out;
+            position: fixed;
+            z-index: 1000;
+            height: 100%;
+        }
+        section[data-testid="stSidebar"][aria-expanded="true"] {
+            transform: translateX(0%);
         }
     }
-}
+    </style>
+""", unsafe_allow_html=True)
 
-cookie = {
-    "name": st.secrets["cookie"]["name"],
-    "key": st.secrets["cookie"]["key"],
-    "expiry_days": st.secrets["cookie"]["expiry_days"]
-}
+# ----------- AUTENTICAÇÃO ----------
+names = ['Robson', 'Erica']
+usernames = ['robson', 'erica']
+passwords = ['123', '321']  # Substitua por hash com stauth.Hasher se quiser segurança real
 
-# 🔑 Autenticação
+hashed_passwords = stauth.Hasher(passwords).generate()
+
 authenticator = stauth.Authenticate(
-    credentials,
-    cookie["name"],
-    cookie["key"],
-    cookie["expiry_days"]
+    names, usernames, hashed_passwords,
+    "painel_admin", "abcdef", cookie_expiry_days=30
 )
 
-# Tela de login
-name, authentication_status, username = authenticator.login("Login", location="main")
+nome, autenticado, nome_usuario = authenticator.login('Login', 'main')
 
-# Lógica de acesso
-if authentication_status is False:
-    st.error("Usuário ou senha incorretos.")
-elif authentication_status is None:
-    st.warning("Por favor, insira suas credenciais.")
-elif authentication_status:
-    # Painel pós-login
-    authenticator.logout("Sair", "sidebar")
-    st.sidebar.success(f"Bem-vindo, {name} 👋")
-    st.title("📊 Painel de Administração")
+if autenticado:
+    authenticator.logout("Logout", "sidebar")
+    st.sidebar.write(f"Bem-vindo, {nome} 👋")
 
-    # Seleção da loja
-    abas_lojas = ["LISBOA", "JOQUEI", "MPE 1", "MPE 2", "PAN", "MARACANAU"]
-    loja = st.selectbox("Selecione a loja", abas_lojas)
+    # ----------- MENU LATERAL -----------
+    st.sidebar.title("Painel Administrativo")
+    opcao = st.sidebar.radio("Navegação", ["Painel de Controle", "📊 Dashboard"])
 
-    # Conecta ao Google Sheets
-    try:
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        credentials_google = service_account.Credentials.from_service_account_info(
-            st.secrets["google_service_account"],
-            scopes=scope
-        )
-        client = gspread.authorize(credentials_google)
+    # ----------- LEITURA DE DADOS --------
+    CAMINHO_ARQUIVO = '/tmp/progresso_nome_pesquisa.xlsx'
+    if not os.path.exists(CAMINHO_ARQUIVO):
+        st.error("❌ Nenhum arquivo encontrado com os dados.")
+        st.stop()
 
-        sheet = client.open("Respostas Pesquisa").worksheet(loja)
-        data = sheet.get_all_records()
-        df = pd.DataFrame(data)
+    df = pd.read_excel(CAMINHO_ARQUIVO)
+    df['DATA_REGISTRO'] = pd.to_datetime(df['DATA_REGISTRO'], errors='coerce')
 
-        st.subheader(f"📄 Respostas da loja: {loja}")
-        st.dataframe(df, use_container_width=True)
+    # ----------- PAINEL DE CONTROLE -----------
+    if opcao == "Painel de Controle":
+        st.title("🛠️ Painel de Controle")
+        st.dataframe(df)
 
-        # Botão para baixar CSV
-        st.download_button(
-            label="📥 Baixar respostas",
-            data=df.to_csv(index=False).encode("utf-8"),
-            file_name=f"respostas_{loja.lower()}.csv",
-            mime="text/csv"
-        )
+    # ----------- DASHBOARD DE GRÁFICOS -----------
+    elif opcao == "📊 Dashboard":
+        st.title("📊 Dashboard de Localização de Produtos")
 
-    except Exception as e:
-        st.error(f"Erro ao carregar os dados da aba '{loja}': {e}")
+        # Filtros
+        st.sidebar.subheader("🔎 Filtros do Dashboard")
+        lojas = st.sidebar.multiselect("Filtrar por loja", df['LOJA'].dropna().unique(), default=df['LOJA'].dropna().unique())
+        df = df[df['LOJA'].isin(lojas)]
 
-    # 🔄 Botão para limpar progresso local
-    st.markdown("---")
-    st.subheader("🧹 Gerenciar Progresso Local")
+        # Gráfico 1 – Produtos mais buscados
+        top_produtos = df['PRODUTO'].value_counts().head(10).reset_index()
+        top_produtos.columns = ['PRODUTO', 'TOTAL']
+        fig1 = px.bar(top_produtos, x='TOTAL', y='PRODUTO', orientation='h', title='🔝 Produtos mais Buscados')
+        st.plotly_chart(fig1, use_container_width=True)
 
-    if st.button("🧼 Limpar arquivos de progresso (temporários)"):
-        try:
-            arquivos = glob.glob("/tmp/progresso_*.xlsx")
-            if not arquivos:
-                st.info("Nenhum arquivo de progresso foi encontrado.")
-            else:
-                for arq in arquivos:
-                    os.remove(arq)
-                st.success(f"✅ {len(arquivos)} arquivos removidos com sucesso.")
-        except Exception as e:
-            st.error(f"Erro ao remover arquivos: {e}")
+        # Gráfico 2 – Lojas com mais registros
+        top_lojas = df['LOJA'].value_counts().reset_index()
+        top_lojas.columns = ['LOJA', 'TOTAL']
+        fig2 = px.pie(top_lojas, names='LOJA', values='TOTAL', title='🏪 Lojas com Mais Registros')
+        st.plotly_chart(fig2, use_container_width=True)
+
+        # Gráfico 3 – Tendência de registros por data
+        tendencia = df.groupby(df['DATA_REGISTRO'].dt.date).size().reset_index(name='TOTAL')
+        fig3 = px.line(tendencia, x='DATA_REGISTRO', y='TOTAL', title='📅 Tendência de Registros por Data')
+        st.plotly_chart(fig3, use_container_width=True)
+
+        # Alerta de produtos sem localização
+        sem_localizacao = df[df['LOCALIZACAO'].isna()]
+        st.warning(f"⚠️ {len(sem_localizacao)} produtos sem localização preenchida.")
+        if not sem_localizacao.empty:
+            st.dataframe(sem_localizacao[['PRODUTO', 'LOJA', 'RESPONSAVEL', 'DATA_REGISTRO']])
+
+else:
+    st.warning("Por favor, faça login para acessar o painel.")
