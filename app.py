@@ -9,24 +9,24 @@ from google.oauth2.service_account import Credentials
 st.set_page_config(
     page_title="Localização de Produtos",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="auto"  # deixa a sidebar responsiva
 )
 
-st.title("📦 Localização de Produtos nas Lojas")
-
-# Aplica estilo CSS para esconder o menu só no celular
+# CSS para esconder a sidebar no celular, mas manter funcionalidade do botão
 st.markdown("""
     <style>
     @media (max-width: 768px) {
-        section[data-testid="stSidebar"][aria-expanded="true"] {
-            transform: translateX(0%);
+        section[data-testid="stSidebar"] {
+            visibility: hidden;
         }
-        section[data-testid="stSidebar"][aria-expanded="false"] {
-            transform: translateX(-100%);
+        button[title="Expand sidebar"] {
+            visibility: visible;
+            z-index: 1001;
         }
     }
     </style>
 """, unsafe_allow_html=True)
+
 
 # Teste de secrets
 try:
