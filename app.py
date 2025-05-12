@@ -18,18 +18,15 @@ st.title("📦 Localização de Produtos nas Lojas")
 st.markdown("""
     <style>
     @media (max-width: 768px) {
-        section[data-testid="stSidebar"] {
-            transform: translateX(-100%);
-            transition: transform 0.3s ease-in-out;
-            position: fixed;
-        }
         section[data-testid="stSidebar"][aria-expanded="true"] {
             transform: translateX(0%);
+        }
+        section[data-testid="stSidebar"][aria-expanded="false"] {
+            transform: translateX(-100%);
         }
     }
     </style>
 """, unsafe_allow_html=True)
-
 
 # Teste de secrets
 try:
