@@ -4,6 +4,7 @@ import datetime
 import os
 import gspread
 from google.oauth2.service_account import Credentials
+import re
 
 # Configuração da página
 st.set_page_config(
@@ -67,11 +68,9 @@ selecionado = st.selectbox("Escolha a pesquisa:", options)
 pesquisa_selecionada = mapa[selecionado]
 
 # Caminho do progresso salvo
-import re
 nome_limpo = re.sub(r'\W+', '_', nome_usuario.strip())
 pesquisa_limpa = re.sub(r'\W+', '_', pesquisa_selecionada.strip())
 progresso_path = f"/tmp/progresso_{nome_limpo}_{pesquisa_limpa}.xlsx"
-
 
 # Carrega progresso salvo se existir
 progresso_antigo = {}
