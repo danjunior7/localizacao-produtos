@@ -12,7 +12,7 @@ st.set_page_config(
     initial_sidebar_state="auto"
 )
 
-# CSS para esconder o menu no celular, mas manter funcionalidade do botão
+# CSS para menu responsivo (oculto no celular, sempre visível no PC)
 st.markdown("""
     <style>
     @media (max-width: 768px) {
@@ -34,8 +34,8 @@ st.title("📦 Localização de Produtos nas Lojas")
 
 # Identificação
 st.subheader("👤 Identificação")
-nome_usuario = st.text_input("Digite seu nome:", key="nome_usuario")
-data_preenchimento = st.date_input("Data de preenchimento:", value=datetime.date.today(), key="data_preenchimento")
+nome_usuario = st.text_input("Digite seu nome:").strip()
+data_preenchimento = st.date_input("Data de preenchimento:", value=datetime.date.today())
 
 if not nome_usuario:
     st.warning("⚠️ Por favor, digite seu nome para continuar.")
@@ -51,6 +51,82 @@ except FileNotFoundError:
 if "PESQUISA" not in df.columns:
     st.error("❌ A planilha precisa da coluna 'PESQUISA'.")
     st.stop()
+
+# Pesquisa
+pesquisas = sorted(df["PESQUISA"].dropna().unique())
+options = []
+mapa = {}
+
+for pesq in pesquisas:
+    label = f"{pesq}"
+    options.append(label)
+    mapa[label] = pesq
+
+st.subheader("🔍 Selecione a pesquisa")
+selecionado = st.selectbox("Escolha a pesquisa:", options)
+pesquisa_selecionada = mapa[selecionado]
+
+# Caminho do progresso salvo
+progresso_path = f"progresso_{nome_usuario.replace(' ', '_')}_{pesquisa_selecionada.replace(' ', '_')}.xlsx"
+
+# Carrega progresso salvo se existir
+progresso_antigo = {}
+if os.path.exists(progresso_path):
+    try:
+        df_antigo = pd.read_excel(progresso_path)
+        for _, row in df_antigo.iterrows():
+            progresso_antigo[row["COD.INT"]] = row["LOCAL INFORMADO"]
+        st.info("🔄 Progresso anterior carregado automaticamente.")
+    except:
+        st.warning("⚠️ Não foi possível carregar progresso anterior.")
+
+# Exibir os itens da pesquisa
+respostas = []
+df_filtrado = df[df["PESQUISA"] == pesquisa_selecionada].reset_index(drop=True)
+
+if df_filtrado.empty:
+    st.warning("⚠️ Nenhum produto encontrado nesta pesquisa.")
+    st.stop()
+
+st.subheader(f"📝 Pesquisa: {pesquisa_selecionada}")
+
+for idx, row in df_filtrado.iterrows():
+    st.markdown("---")
+    st.markdown(f"**🛍️ Produto:** {row['DESCRIÇÃO']}")
+    st.markdown(f"**🔢 Código Interno:** {row.get('COD.INT', '---')}")
+    st.markdown(f"**📦 Estoque:** {row.get('ESTOQUE', '---')}")
+    st.markdown(f"**📆 Dias sem movimentação:** {row.get('DIAS SEM MOVIMENTAÇÃO', '---')}")
+    st.markdown(f"**🏷️ EAN:** {row.get('EAN', '---')}")
+    st.markdown(f"**📍 Seção:** {row.get('SEÇÃO', '---')}")
+
+    local_key = f"local_{idx}"
+    valor_inicial = progresso_antigo.get(row.get("COD.INT", ""), "")
+
+    local = st.selectbox(
+        f"📍 Onde está o produto ({row['DESCRIÇÃO']}):",
+        ["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"],
+        key=local_key,
+        index=["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"].index(valor_inicial) if valor_inicial in ["SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"] else 0
+    )
+
+    respostas.append({
+        "USUÁRIO": nome_usuario,
+        "DATA": data_preenchimento.strftime('%Y-%m-%d'),
+        "PESQUISA": pesquisa_selecionada,
+        "LOJA": row["LOJA"],
+        "DESCRIÇÃO": row["DESCRIÇÃO"],
+        "COD.INT": row.get("COD.INT", ""),
+        "EAN": row.get("EAN", ""),
+        "ESTOQUE": row.get("ESTOQUE", ""),
+        "DIAS SEM MOVIMENTAÇÃO": row.get("DIAS SEM MOVIMENTAÇÃO", ""),
+        "SEÇÃO": row.get("SEÇÃO", ""),
+        "LOCAL INFORMADO": local
+    })
+
+# Salva o progresso automaticamente localmente
+df_temp = pd.DataFrame(respostas)
+df_temp.to_excel(progresso_path, index=False)
+st.toast("💾 Progresso salvo localmente (automático).", icon="💾")
 
 # Função para salvar no Google Sheets
 def salvar_google_sheets(respostas):
@@ -77,73 +153,18 @@ def salvar_google_sheets(respostas):
     except Exception as e:
         st.error(f"Erro ao salvar no Google Sheets: {e}")
 
-# Pesquisa
-pesquisas = sorted(df["PESQUISA"].dropna().unique())
-options = []
-mapa = {}
+# Botão de envio final
+if st.button("📅 Salvar respostas"):
+    df_novas = pd.DataFrame(respostas)
 
-for pesq in pesquisas:
-    label = f"{pesq}"
-    options.append(label)
-    mapa[label] = pesq
+    RESP_ARQ = "respostas.xlsx"
+    if os.path.exists(RESP_ARQ):
+        with pd.ExcelWriter(RESP_ARQ, engine='openpyxl', mode='a', if_sheet_exists='overlay') as writer:
+            wb = writer.book
+            ws = wb.active
+            startrow = ws.max_row
+            df_novas.to_excel(writer, index=False, header=False, startrow=startrow)
+    else:
+        df_novas.to_excel(RESP_ARQ, index=False)
 
-st.subheader("🔍 Selecione a pesquisa")
-selecionado = st.selectbox("Escolha a pesquisa:", options, key="pesquisa")
-pesquisa_selecionada = mapa[selecionado]
-
-# Exibir os itens da pesquisa
-respostas = []
-df_filtrado = df[df["PESQUISA"] == pesquisa_selecionada].reset_index(drop=True)
-
-if df_filtrado.empty:
-    st.warning("⚠️ Nenhum produto encontrado nesta pesquisa.")
-else:
-    st.subheader(f"📝 Pesquisa: {pesquisa_selecionada}")
-
-    for idx, row in df_filtrado.iterrows():
-        st.markdown("---")
-        st.markdown(f"**🛍️ Produto:** {row['DESCRIÇÃO']}")
-        st.markdown(f"**🔢 Código Interno:** {row.get('COD.INT', '---')}")
-        st.markdown(f"**📦 Estoque:** {row.get('ESTOQUE', '---')}")
-        st.markdown(f"**📆 Dias sem movimentação:** {row.get('DIAS SEM MOVIMENTAÇÃO', '---')}")
-        st.markdown(f"**🏷️ EAN:** {row.get('EAN', '---')}")
-        st.markdown(f"**📍 Seção:** {row.get('SEÇÃO', '---')}")
-
-        local_key = f"local_{idx}"
-        if local_key not in st.session_state:
-            st.session_state[local_key] = ""
-
-        local = st.selectbox(
-            f"📍 Onde está o produto ({row['DESCRIÇÃO']}):",
-            ["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"],
-            key=local_key
-        )
-
-        respostas.append({
-            "USUÁRIO": nome_usuario,
-            "DATA": data_preenchimento.strftime('%Y-%m-%d'),
-            "PESQUISA": pesquisa_selecionada,
-            "LOJA": row["LOJA"],
-            "DESCRIÇÃO": row["DESCRIÇÃO"],
-            "COD.INT": row.get("COD.INT", ""),
-            "EAN": row.get("EAN", ""),
-            "ESTOQUE": row.get("ESTOQUE", ""),
-            "DIAS SEM MOVIMENTAÇÃO": row.get("DIAS SEM MOVIMENTAÇÃO", ""),
-            "SEÇÃO": row.get("SEÇÃO", ""),
-            "LOCAL INFORMADO": local
-        })
-
-    if st.button("📅 Salvar respostas"):
-        df_novas = pd.DataFrame(respostas)
-
-        RESP_ARQ = "respostas.xlsx"
-        if os.path.exists(RESP_ARQ):
-            with pd.ExcelWriter(RESP_ARQ, engine='openpyxl', mode='a', if_sheet_exists='overlay') as writer:
-                wb = writer.book
-                ws = wb.active
-                startrow = ws.max_row
-                df_novas.to_excel(writer, index=False, header=False, startrow=startrow)
-        else:
-            df_novas.to_excel(RESP_ARQ, index=False)
-
-        salvar_google_sheets(respostas)
+    salvar_google_sheets(respostas)
