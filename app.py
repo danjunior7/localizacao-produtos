@@ -12,16 +12,19 @@ st.set_page_config(
     initial_sidebar_state="auto"  # deixa a sidebar responsiva
 )
 
-# CSS para esconder a sidebar no celular, mas manter funcionalidade do botão
+# CSS que oculta sidebar no celular, mas mantém botão funcionando
 st.markdown("""
     <style>
     @media (max-width: 768px) {
         section[data-testid="stSidebar"] {
-            visibility: hidden;
+            transform: translateX(-100%);
+            transition: all 0.3s ease-in-out;
+            position: fixed;
+            z-index: 1000;
+            height: 100%;
         }
-        button[title="Expand sidebar"] {
-            visibility: visible;
-            z-index: 1001;
+        section[data-testid="stSidebar"][aria-expanded="true"] {
+            transform: translateX(0%);
         }
     }
     </style>
