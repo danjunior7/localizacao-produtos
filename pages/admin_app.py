@@ -3,6 +3,8 @@ import pandas as pd
 import streamlit_authenticator as stauth
 import gspread
 from google.oauth2 import service_account
+import os
+import glob
 
 st.set_page_config(page_title="Painel Admin", layout="wide")
 
@@ -72,3 +74,16 @@ elif authentication_status:
 
     except Exception as e:
         st.error(f"Erro ao carregar os dados da aba '{loja}': {e}")
+
+    # ✅ GERENCIAR PROGRESSO LOCAL SALVO
+    st.markdown("---")
+    st.subheader("🧹 Gerenciar Progresso")
+
+    if st.button("🧼 Limpar todos os arquivos de progresso salvos (localmente)"):
+        try:
+            arquivos = glob.glob("/tmp/progresso_*.xlsx")
+            for arq in arquivos:
+                os.remove(arq)
+            st.success(f"✅ {len(arquivos)} arquivos de progresso removidos.")
+        except Exception as e:
+            st.error(f"Erro ao remover arquivos: {e}")
