@@ -6,7 +6,12 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 # Configuração da página
-st.set_page_config(page_title="Localização de Produtos", layout="wide")
+st.set_page_config(
+    page_title="Localização de Produtos",
+    layout="wide",
+    initial_sidebar_state="expanded"  # <- essa é a chave
+)
+
 st.title("📦 Localização de Produtos nas Lojas")
 
 # Esconde o menu lateral inicialmente
