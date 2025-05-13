@@ -59,7 +59,7 @@ if autenticado:
     st.sidebar.title("Painel Administrativo")
     opcao = st.sidebar.radio("Navegação", ["Painel de Controle", "📊 Dashboard"])
 
-    # ----------- LEITURA DE DADOS DE TODAS AS ABAS DO GOOGLE SHEETS -----------
+    # ----------- LEITURA DE TODAS AS ABAS DO GOOGLE SHEETS -----------
     scopes = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
     credentials = Credentials.from_service_account_info(
         st.secrets["google_service_account"],
@@ -72,17 +72,26 @@ if autenticado:
     try:
         planilha = gc.open_by_key(SHEET_ID)
         abas = planilha.worksheets()
-        
+
         df_lista = []
         for aba in abas:
             dados = aba.get_all_records()
-            if dados:  # só adiciona se houver dados
+            if dados:
                 df_temp = pd.DataFrame(dados)
                 df_temp['LOJA'] = aba.title
+
+                if 'DATA' not in df_temp.columns:
+                    st.warning(f"A aba '{aba.title}' não possui a coluna 'DATA'. Ela foi ignorada.")
+                    continue
+
                 df_lista.append(df_temp)
 
+        if not df_lista:
+            st.error("Nenhuma aba válida com a coluna 'DATA' foi encontrada.")
+            st.stop()
+
         df = pd.concat(df_lista, ignore_index=True)
-        df['DATA_REGISTRO'] = pd.to_datetime(df['DATA_REGISTRO'], errors='coerce')
+        df['DATA'] = pd.to_datetime(df['DATA'], errors='coerce')
     except Exception as e:
         st.error(f"Erro ao carregar os dados do Google Sheets: {e}")
         st.stop()
@@ -101,10 +110,10 @@ if autenticado:
         lojas = st.sidebar.multiselect("Filtrar por loja", df['LOJA'].dropna().unique(), default=df['LOJA'].dropna().unique())
         df = df[df['LOJA'].isin(lojas)]
 
-        # Gráfico 1 – Produtos mais buscados
-        top_produtos = df['PRODUTO'].value_counts().head(10).reset_index()
-        top_produtos.columns = ['PRODUTO', 'TOTAL']
-        fig1 = px.bar(top_produtos, x='TOTAL', y='PRODUTO', orientation='h', title='🔝 Produtos mais Buscados')
+        # Gráfico 1 – Itens mais buscados (DESCRIÇÃO)
+        top_produtos = df['DESCRIÇÃO'].value_counts().head(10).reset_index()
+        top_produtos.columns = ['DESCRIÇÃO', 'TOTAL']
+        fig1 = px.bar(top_produtos, x='TOTAL', y='DESCRIÇÃO', orientation='h', title='🔝 Produtos mais Buscados')
         st.plotly_chart(fig1, use_container_width=True)
 
         # Gráfico 2 – Lojas com mais registros
@@ -114,15 +123,15 @@ if autenticado:
         st.plotly_chart(fig2, use_container_width=True)
 
         # Gráfico 3 – Tendência de registros por data
-        tendencia = df.groupby(df['DATA_REGISTRO'].dt.date).size().reset_index(name='TOTAL')
-        fig3 = px.line(tendencia, x='DATA_REGISTRO', y='TOTAL', title='📅 Tendência de Registros por Data')
+        tendencia = df.groupby(df['DATA'].dt.date).size().reset_index(name='TOTAL')
+        fig3 = px.line(tendencia, x='DATA', y='TOTAL', title='📅 Tendência de Registros por Data')
         st.plotly_chart(fig3, use_container_width=True)
 
         # Alerta de produtos sem localização
-        sem_localizacao = df[df['LOCALIZACAO'].isna()]
+        sem_localizacao = df[df['LOCAL INFORMADO'].isna()]
         st.warning(f"⚠️ {len(sem_localizacao)} produtos sem localização preenchida.")
         if not sem_localizacao.empty:
-            st.dataframe(sem_localizacao[['PRODUTO', 'LOJA', 'RESPONSAVEL', 'DATA_REGISTRO']])
+            st.dataframe(sem_localizacao[['DESCRIÇÃO', 'LOJA', 'USUÁRIO', 'DATA']])
 
 else:
     st.warning("Por favor, faça login para acessar o painel.")
