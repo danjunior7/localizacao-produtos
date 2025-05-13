@@ -56,6 +56,13 @@ if autenticado:
     authenticator.logout("Logout", "sidebar")
     st.sidebar.write(f"Bem-vindo, {nome} 👋")
 
+    # ----------- BOTÃO DE LIMPAR SALVAMENTO AUTOMÁTICO -----------
+    CAMINHO_ARQUIVO_TEMP = "/tmp/progresso_nome_pesquisa.xlsx"
+    if os.path.exists(CAMINHO_ARQUIVO_TEMP):
+        if st.sidebar.button("🗑️ Limpar salvamento automático"):
+            os.remove(CAMINHO_ARQUIVO_TEMP)
+            st.sidebar.success("Arquivo temporário removido com sucesso!")
+
     # ----------- MENU LATERAL -----------
     st.sidebar.title("Painel Administrativo")
     opcao = st.sidebar.radio("Navegação", ["Painel de Controle", "📊 Dashboard"])
