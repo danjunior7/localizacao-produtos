@@ -58,10 +58,13 @@ if autenticado:
 
     # ----------- BOTÃO DE LIMPAR SALVAMENTO AUTOMÁTICO -----------
     CAMINHO_ARQUIVO_TEMP = "/tmp/progresso_nome_pesquisa.xlsx"
+    if st.sidebar.button("🗑️ Limpar salvamento automático"):
     if os.path.exists(CAMINHO_ARQUIVO_TEMP):
-        if st.sidebar.button("🗑️ Limpar salvamento automático"):
-            os.remove(CAMINHO_ARQUIVO_TEMP)
-            st.sidebar.success("Arquivo temporário removido com sucesso!")
+        os.remove(CAMINHO_ARQUIVO_TEMP)
+        st.sidebar.success("Arquivo temporário removido com sucesso!")
+    else:
+        st.sidebar.info("Nenhum arquivo para limpar.")
+
 
     # ----------- MENU LATERAL -----------
     st.sidebar.title("Painel Administrativo")
