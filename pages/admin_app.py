@@ -60,7 +60,7 @@ if autenticado:
     st.sidebar.title("Painel Administrativo")
     opcao = st.sidebar.radio("Navegação", ["Painel de Controle", "📊 Dashboard"])
 
-    # ----------- LEITURA DE TODAS AS ABAS DO GOOGLE SHEETS -----------
+    # ----------- LEITURA DAS ABAS DO GOOGLE SHEETS -----------
     scopes = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
     credentials = Credentials.from_service_account_info(
         st.secrets["google_service_account"],
@@ -128,14 +128,11 @@ if autenticado:
 
         # ----------- INDICADORES -----------
         total_registros = len(df)
-        sem_localizacao = df['LOCAL INFORMADO'].isna().sum()
-        percentual_sem_localizacao = (sem_localizacao / total_registros * 100) if total_registros > 0 else 0
         loja_destaque = df['LOJA'].value_counts().idxmax() if not df.empty else "N/A"
 
-        col1, col2, col3 = st.columns(3)
+        col1, col2 = st.columns(2)
         col1.metric("📦 Total de Registros", total_registros)
-        col2.metric("⚠️ Sem Localização (%)", f"{percentual_sem_localizacao:.1f}%")
-        col3.metric("🏪 Loja com Mais Registros", loja_destaque)
+        col2.metric("🏪 Loja com Mais Registros", loja_destaque)
 
         # ----------- GRÁFICO 1 – Produtos mais buscados -----------
         top_produtos = df['DESCRIÇÃO'].value_counts().head(10).reset_index()
@@ -154,17 +151,9 @@ if autenticado:
         fig3 = px.line(tendencia, x='DATA', y='TOTAL', title='📅 Tendência de Registros por Data')
         st.plotly_chart(fig3, use_container_width=True)
 
-        # ----------- TABELA DE PRODUTOS SEM LOCALIZAÇÃO -----------
-        st.subheader("📋 Produtos sem Localização")
-        sem_localizacao_df = df[df['LOCAL INFORMADO'].isna()]
-        if not sem_localizacao_df.empty:
-            st.dataframe(sem_localizacao_df[['DESCRIÇÃO', 'LOJA', 'USUÁRIO', 'DATA']])
-
-            if st.button("✅ Marcar todos como Resolvido (local)"):
-                st.success("Todos os produtos foram marcados como resolvidos. (Ação local — implementar salvamento se necessário)")
-
-        else:
-            st.success("Todos os produtos possuem localização!")
+        # ----------- TABELA DE REGISTROS -----------
+        st.subheader("📋 Registros Consolidados")
+        st.dataframe(df[['DESCRIÇÃO', 'LOJA', 'USUÁRIO', 'DATA', 'LOCAL INFORMADO']])
 
         # ----------- EXPORTAÇÃO -----------
         st.subheader("📤 Exportar Dados")
