@@ -11,21 +11,44 @@ import gspread
 # ----------- CONFIGURAÇÃO INICIAL ----------
 st.set_page_config(page_title="Painel Administrativo", layout="wide")
 
-# CSS menu responsivo
+# ----------- ESTILO GLOBAL VISUAL PRO (VERDE) -----------
 st.markdown("""
     <style>
-    @media (max-width: 768px) {
-        section[data-testid="stSidebar"] {
-            transform: translateX(-100%);
-            transition: all 0.3s ease-in-out;
-            position: fixed;
-            z-index: 1000;
-            height: 100%;
+        /* Fundo geral claro */
+        body, .stApp {
+            background-color: #f8fdf8;
         }
-        section[data-testid="stSidebar"][aria-expanded="true"] {
-            transform: translateX(0%);
+        /* Indicadores bonitos */
+        .card {
+            background-color: #e0f7e9;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            text-align: center;
         }
-    }
+        .card h3 {
+            margin: 0;
+            font-size: 22px;
+            color: #1a7431;
+        }
+        .card p {
+            font-size: 28px;
+            font-weight: bold;
+            color: #1a7431;
+        }
+        .big-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1a7431;
+            margin-bottom: 10px;
+        }
+        .sub-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-top: 20px;
+            margin-bottom: 5px;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -56,7 +79,7 @@ if autenticado:
     authenticator.logout("Logout", "sidebar")
     st.sidebar.write(f"Bem-vindo, {nome} 👋")
 
-    # ----------- BOTÃO DE LIMPAR SALVAMENTO AUTOMÁTICO -----------
+    # ----------- BOTÃO DE LIMPAR ARQUIVO TEMPORÁRIO -----------
     CAMINHO_ARQUIVO_TEMP = "/tmp/progresso_nome_pesquisa.xlsx"
     if st.sidebar.button("🗑️ Limpar salvamento automático"):
         if os.path.exists(CAMINHO_ARQUIVO_TEMP):
@@ -69,13 +92,12 @@ if autenticado:
     st.sidebar.title("Painel Administrativo")
     opcao = st.sidebar.radio("Navegação", ["Painel de Controle", "📊 Dashboard"])
 
-    # ----------- LEITURA DAS ABAS DO GOOGLE SHEETS -----------
+    # ----------- LEITURA DOS DADOS GOOGLE SHEETS -----------
     scopes = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
     credentials = Credentials.from_service_account_info(
         st.secrets["google_service_account"],
         scopes=scopes
     )
-
     gc = gspread.authorize(credentials)
     SHEET_ID = "1Zl6JTKgfjwLI0JNyz5CFIhgx8nbshTk8TicFcv8h7mU"
 
@@ -89,41 +111,38 @@ if autenticado:
             if dados:
                 df_temp = pd.DataFrame(dados)
                 df_temp['LOJA'] = aba.title
-
                 if 'DATA' not in df_temp.columns:
-                    st.warning(f"A aba '{aba.title}' não possui a coluna 'DATA'. Ela foi ignorada.")
+                    st.warning(f"A aba '{aba.title}' não possui a coluna 'DATA'. Ignorada.")
                     continue
-
                 df_lista.append(df_temp)
 
         if not df_lista:
-            st.error("Nenhuma aba válida com a coluna 'DATA' foi encontrada.")
+            st.error("Nenhuma aba válida com coluna 'DATA'.")
             st.stop()
 
         df = pd.concat(df_lista, ignore_index=True)
         df['DATA'] = pd.to_datetime(df['DATA'], errors='coerce')
+
     except Exception as e:
-        st.error(f"Erro ao carregar os dados do Google Sheets: {e}")
+        st.error(f"Erro ao carregar planilha: {e}")
         st.stop()
 
     # ----------- PAINEL DE CONTROLE -----------
     if opcao == "Painel de Controle":
-        st.title("🛠️ Painel de Controle")
+        st.markdown('<div class="big-title">🛠️ Painel de Controle</div>', unsafe_allow_html=True)
         st.dataframe(df)
 
     # ----------- DASHBOARD -----------
     elif opcao == "📊 Dashboard":
-        st.title("📊 Dashboard de Localização de Produtos")
+        st.markdown('<div class="big-title">📊 Dashboard de Localização</div>', unsafe_allow_html=True)
 
         # ----------- FILTROS -----------
         st.sidebar.subheader("🔎 Filtros")
-
         lojas = st.sidebar.multiselect("Filtrar por loja", df['LOJA'].dropna().unique(), default=df['LOJA'].dropna().unique())
         df = df[df['LOJA'].isin(lojas)]
 
-        periodo = st.sidebar.selectbox("Filtrar por período", ["Últimos 7 dias", "Últimos 15 dias", "Últimos 30 dias", "Intervalo personalizado"])
+        periodo = st.sidebar.selectbox("Período", ["Últimos 7 dias", "Últimos 15 dias", "Últimos 30 dias", "Intervalo personalizado"])
         hoje = datetime.date.today()
-
         if periodo == "Últimos 7 dias":
             df = df[df['DATA'].dt.date >= hoje - datetime.timedelta(days=7)]
         elif periodo == "Últimos 15 dias":
@@ -135,51 +154,49 @@ if autenticado:
             fim = st.sidebar.date_input("Fim", hoje)
             df = df[(df['DATA'].dt.date >= inicio) & (df['DATA'].dt.date <= fim)]
 
-        # ----------- INDICADORES -----------
+        # ----------- INDICADORES EM CARDS -----------
         total_registros = len(df)
         loja_destaque = df['LOJA'].value_counts().idxmax() if not df.empty else "N/A"
 
+        st.markdown('<div class="sub-title">📈 Indicadores</div>', unsafe_allow_html=True)
         col1, col2 = st.columns(2)
-        col1.metric("📦 Total de Registros", total_registros)
-        col2.metric("🏪 Loja com Mais Registros", loja_destaque)
+        with col1:
+            st.markdown('<div class="card"><h3>Total de Registros</h3><p>{}</p></div>'.format(total_registros), unsafe_allow_html=True)
+        with col2:
+            st.markdown('<div class="card"><h3>Loja com Mais Registros</h3><p>{}</p></div>'.format(loja_destaque), unsafe_allow_html=True)
 
-        # ----------- GRÁFICO 1 – Produtos mais buscados -----------
+        # ----------- GRÁFICOS -----------
+        st.markdown('<div class="sub-title">📦 Produtos mais Buscados</div>', unsafe_allow_html=True)
         top_produtos = df['DESCRIÇÃO'].value_counts().head(10).reset_index()
         top_produtos.columns = ['DESCRIÇÃO', 'TOTAL']
-        fig1 = px.bar(top_produtos, x='TOTAL', y='DESCRIÇÃO', orientation='h', title='🔝 Produtos mais Buscados')
-        st.plotly_chart(fig1, use_container_width=True)
+        st.plotly_chart(px.bar(top_produtos, x='TOTAL', y='DESCRIÇÃO', orientation='h'), use_container_width=True)
 
-        # ----------- GRÁFICO 2 – Lojas com mais registros -----------
+        st.markdown('<div class="sub-title">🏪 Lojas com Mais Registros</div>', unsafe_allow_html=True)
         top_lojas = df['LOJA'].value_counts().reset_index()
         top_lojas.columns = ['LOJA', 'TOTAL']
-        fig2 = px.pie(top_lojas, names='LOJA', values='TOTAL', title='🏪 Lojas com Mais Registros')
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(px.pie(top_lojas, names='LOJA', values='TOTAL'), use_container_width=True)
 
-        # ----------- GRÁFICO 3 – Tendência por Data -----------
+        st.markdown('<div class="sub-title">📅 Tendência por Data</div>', unsafe_allow_html=True)
         tendencia = df.groupby(df['DATA'].dt.date).size().reset_index(name='TOTAL')
-        fig3 = px.line(tendencia, x='DATA', y='TOTAL', title='📅 Tendência de Registros por Data')
-        st.plotly_chart(fig3, use_container_width=True)
+        st.plotly_chart(px.line(tendencia, x='DATA', y='TOTAL'), use_container_width=True)
 
-        # ----------- TABELA DE REGISTROS -----------
-        st.subheader("📋 Registros Consolidados")
+        # ----------- TABELA -----------
+        st.markdown('<div class="sub-title">📋 Registros</div>', unsafe_allow_html=True)
         st.dataframe(df[['DESCRIÇÃO', 'LOJA', 'USUÁRIO', 'DATA', 'LOCAL INFORMADO']])
 
         # ----------- EXPORTAÇÃO -----------
-        st.subheader("📤 Exportar Dados")
-
+        st.markdown('<div class="sub-title">📤 Exportar Dados</div>', unsafe_allow_html=True)
         exportar = df.copy()
         exportar['DATA'] = exportar['DATA'].dt.strftime("%d/%m/%Y")
-
         col1, col2 = st.columns(2)
         with col1:
             excel_buffer = io.BytesIO()
             with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
                 exportar.to_excel(writer, index=False, sheet_name='Exportação')
-            st.download_button("⬇️ Baixar Excel", data=excel_buffer.getvalue(), file_name="dashboard_exportado.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
+            st.download_button("⬇️ Baixar Excel", data=excel_buffer.getvalue(), file_name="export.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         with col2:
             csv_buffer = exportar.to_csv(index=False).encode('utf-8')
-            st.download_button("⬇️ Baixar CSV", data=csv_buffer, file_name="dashboard_exportado.csv", mime="text/csv")
+            st.download_button("⬇️ Baixar CSV", data=csv_buffer, file_name="export.csv", mime="text/csv")
 
 else:
     st.warning("Por favor, faça login para acessar o painel.")
