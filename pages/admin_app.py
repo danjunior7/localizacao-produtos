@@ -29,14 +29,23 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ----------- AUTENTICAÇÃO ----------
-names = ['Robson', 'Erica']
-usernames = ['robson', 'erica']
-passwords = ['123', '321']  # Substitua por hash com stauth.Hasher se quiser segurança real
+hashed_passwords = stauth.Hasher(['123', '321']).generate()
 
-hashed_passwords = stauth.Hasher(passwords).generate()
+credentials = {
+    "usernames": {
+        "robson": {
+            "name": "Robson",
+            "password": hashed_passwords[0]
+        },
+        "erica": {
+            "name": "Erica",
+            "password": hashed_passwords[1]
+        }
+    }
+}
 
 authenticator = stauth.Authenticate(
-    names, usernames, hashed_passwords,
+    credentials,
     "painel_admin", "abcdef", cookie_expiry_days=30
 )
 
