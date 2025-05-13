@@ -62,7 +62,7 @@ if autenticado:
     # ----------- LEITURA DE DADOS DE TODAS AS ABAS DO GOOGLE SHEETS -----------
     scopes = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
     credentials = Credentials.from_service_account_info(
-        st.secrets["gcp_service_account"],
+        st.secrets["google_service_account"],
         scopes=scopes
     )
 
