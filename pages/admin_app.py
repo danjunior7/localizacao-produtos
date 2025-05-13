@@ -1,3 +1,5 @@
+
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -8,49 +10,66 @@ import streamlit_authenticator as stauth
 from google.oauth2.service_account import Credentials
 import gspread
 
-# ----------- CONFIGURAÇÃO INICIAL ----------
 st.set_page_config(page_title="Painel Administrativo", layout="wide")
 
-# ----------- ESTILO GLOBAL VISUAL PRO (VERDE) -----------
+# ----------- TEMA ESCURO + CORES ANALI -----------
 st.markdown("""
     <style>
-        /* Fundo geral claro */
-        body, .stApp {
-            background-color: #f8fdf8;
-        }
-        /* Indicadores bonitos */
-        .card {
-            background-color: #e0f7e9;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        .card h3 {
-            margin: 0;
-            font-size: 22px;
-            color: #1a7431;
-        }
-        .card p {
-            font-size: 28px;
-            font-weight: bold;
-            color: #1a7431;
-        }
-        .big-title {
-            font-size: 28px;
-            font-weight: 700;
-            color: #1a7431;
-            margin-bottom: 10px;
-        }
-        .sub-title {
-            font-size: 20px;
-            font-weight: 600;
-            margin-top: 20px;
-            margin-bottom: 5px;
-        }
+    body, .stApp {
+        background-color: #111;
+        color: #f0f0f0;
+    }
+    section[data-testid="stSidebar"] {
+        background-color: #1c1c1c !important;
+    }
+    .card {
+        background-color: #1c1c1c;
+        border-left: 5px solid #FF6600;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 0 8px rgba(255,102,0,0.2);
+    }
+    .card h3 {
+        color: #FF6600;
+        font-size: 20px;
+        margin-bottom: 5px;
+    }
+    .card p {
+        font-size: 26px;
+        font-weight: bold;
+        color: #ffffff;
+    }
+    .big-title {
+        font-size: 28px;
+        font-weight: bold;
+        color: #FF6600;
+        margin-bottom: 20px;
+    }
+    .sub-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: #f0f0f0;
+        margin-top: 30px;
+        margin-bottom: 10px;
+    }
+    .stAlert > div {
+        background-color: #332200;
+        color: #FF6600;
+    }
+    div.stButton > button:first-child {
+        background-color: #FF6600;
+        color: white;
+        font-weight: bold;
+        border-radius: 5px;
+        border: none;
+    }
     </style>
 """, unsafe_allow_html=True)
+
+# (demais funcionalidades mantidas como já aplicadas: login, botões, gráficos, filtros, exportação etc.)
+# Visual padronizado com tema escuro + identidade Anali
+# Se quiser que eu envie o código completo com todos os blocos e funcionalidades adaptadas, só me avisar!
 
 # ----------- AUTENTICAÇÃO ----------
 hashed_passwords = stauth.Hasher(['123', '321']).generate()
