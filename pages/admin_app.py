@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 import datetime
 import os
+import io
 import streamlit_authenticator as stauth
 from google.oauth2.service_account import Credentials
 import gspread
@@ -10,7 +11,7 @@ import gspread
 # ----------- CONFIGURAÇÃO INICIAL ----------
 st.set_page_config(page_title="Painel Administrativo", layout="wide")
 
-# CSS para manter o menu visível no PC e esconder no celular
+# CSS menu responsivo
 st.markdown("""
     <style>
     @media (max-width: 768px) {
@@ -101,37 +102,86 @@ if autenticado:
         st.title("🛠️ Painel de Controle")
         st.dataframe(df)
 
-    # ----------- DASHBOARD DE GRÁFICOS -----------
+    # ----------- DASHBOARD -----------
     elif opcao == "📊 Dashboard":
         st.title("📊 Dashboard de Localização de Produtos")
 
-        # Filtros
-        st.sidebar.subheader("🔎 Filtros do Dashboard")
+        # ----------- FILTROS -----------
+        st.sidebar.subheader("🔎 Filtros")
+
         lojas = st.sidebar.multiselect("Filtrar por loja", df['LOJA'].dropna().unique(), default=df['LOJA'].dropna().unique())
         df = df[df['LOJA'].isin(lojas)]
 
-        # Gráfico 1 – Itens mais buscados (DESCRIÇÃO)
+        periodo = st.sidebar.selectbox("Filtrar por período", ["Últimos 7 dias", "Últimos 15 dias", "Últimos 30 dias", "Intervalo personalizado"])
+        hoje = datetime.date.today()
+
+        if periodo == "Últimos 7 dias":
+            df = df[df['DATA'].dt.date >= hoje - datetime.timedelta(days=7)]
+        elif periodo == "Últimos 15 dias":
+            df = df[df['DATA'].dt.date >= hoje - datetime.timedelta(days=15)]
+        elif periodo == "Últimos 30 dias":
+            df = df[df['DATA'].dt.date >= hoje - datetime.timedelta(days=30)]
+        elif periodo == "Intervalo personalizado":
+            inicio = st.sidebar.date_input("Início", hoje - datetime.timedelta(days=7))
+            fim = st.sidebar.date_input("Fim", hoje)
+            df = df[(df['DATA'].dt.date >= inicio) & (df['DATA'].dt.date <= fim)]
+
+        # ----------- INDICADORES -----------
+        total_registros = len(df)
+        sem_localizacao = df['LOCAL INFORMADO'].isna().sum()
+        percentual_sem_localizacao = (sem_localizacao / total_registros * 100) if total_registros > 0 else 0
+        loja_destaque = df['LOJA'].value_counts().idxmax() if not df.empty else "N/A"
+
+        col1, col2, col3 = st.columns(3)
+        col1.metric("📦 Total de Registros", total_registros)
+        col2.metric("⚠️ Sem Localização (%)", f"{percentual_sem_localizacao:.1f}%")
+        col3.metric("🏪 Loja com Mais Registros", loja_destaque)
+
+        # ----------- GRÁFICO 1 – Produtos mais buscados -----------
         top_produtos = df['DESCRIÇÃO'].value_counts().head(10).reset_index()
         top_produtos.columns = ['DESCRIÇÃO', 'TOTAL']
         fig1 = px.bar(top_produtos, x='TOTAL', y='DESCRIÇÃO', orientation='h', title='🔝 Produtos mais Buscados')
         st.plotly_chart(fig1, use_container_width=True)
 
-        # Gráfico 2 – Lojas com mais registros
+        # ----------- GRÁFICO 2 – Lojas com mais registros -----------
         top_lojas = df['LOJA'].value_counts().reset_index()
         top_lojas.columns = ['LOJA', 'TOTAL']
         fig2 = px.pie(top_lojas, names='LOJA', values='TOTAL', title='🏪 Lojas com Mais Registros')
         st.plotly_chart(fig2, use_container_width=True)
 
-        # Gráfico 3 – Tendência de registros por data
+        # ----------- GRÁFICO 3 – Tendência por Data -----------
         tendencia = df.groupby(df['DATA'].dt.date).size().reset_index(name='TOTAL')
         fig3 = px.line(tendencia, x='DATA', y='TOTAL', title='📅 Tendência de Registros por Data')
         st.plotly_chart(fig3, use_container_width=True)
 
-        # Alerta de produtos sem localização
-        sem_localizacao = df[df['LOCAL INFORMADO'].isna()]
-        st.warning(f"⚠️ {len(sem_localizacao)} produtos sem localização preenchida.")
-        if not sem_localizacao.empty:
-            st.dataframe(sem_localizacao[['DESCRIÇÃO', 'LOJA', 'USUÁRIO', 'DATA']])
+        # ----------- TABELA DE PRODUTOS SEM LOCALIZAÇÃO -----------
+        st.subheader("📋 Produtos sem Localização")
+        sem_localizacao_df = df[df['LOCAL INFORMADO'].isna()]
+        if not sem_localizacao_df.empty:
+            st.dataframe(sem_localizacao_df[['DESCRIÇÃO', 'LOJA', 'USUÁRIO', 'DATA']])
+
+            if st.button("✅ Marcar todos como Resolvido (local)"):
+                st.success("Todos os produtos foram marcados como resolvidos. (Ação local — implementar salvamento se necessário)")
+
+        else:
+            st.success("Todos os produtos possuem localização!")
+
+        # ----------- EXPORTAÇÃO -----------
+        st.subheader("📤 Exportar Dados")
+
+        exportar = df.copy()
+        exportar['DATA'] = exportar['DATA'].dt.strftime("%d/%m/%Y")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            excel_buffer = io.BytesIO()
+            with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
+                exportar.to_excel(writer, index=False, sheet_name='Exportação')
+            st.download_button("⬇️ Baixar Excel", data=excel_buffer.getvalue(), file_name="dashboard_exportado.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+        with col2:
+            csv_buffer = exportar.to_csv(index=False).encode('utf-8')
+            st.download_button("⬇️ Baixar CSV", data=csv_buffer, file_name="dashboard_exportado.csv", mime="text/csv")
 
 else:
     st.warning("Por favor, faça login para acessar o painel.")
