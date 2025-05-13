@@ -9,33 +9,33 @@ import re
 # ----------- CONFIGURAÇÃO INICIAL ----------
 st.set_page_config(page_title="Localização de Produtos", layout="wide")
 
-# ----------- TEMA VISUAL VERDE -----------
+# ----------- TEMA ESCURO + CORES ANALI -----------
 st.markdown("""
     <style>
     body, .stApp {
-        background-color: #f4fcf5;
-        font-family: 'Segoe UI', sans-serif;
+        background-color: #111;
+        color: #f0f0f0;
     }
     .card {
-        background-color: #e6f5eb;
-        border-radius: 10px;
+        background-color: #1c1c1c;
+        border-left: 5px solid #FF6600;
+        border-radius: 8px;
         padding: 20px;
-        box-shadow: 1px 1px 8px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
+        margin-bottom: 15px;
+        box-shadow: 0 0 8px rgba(255,102,0,0.2);
     }
     .card h4 {
-        margin: 0;
-        font-size: 18px;
-        color: #1a7431;
+        color: #FF6600;
+        margin-bottom: 10px;
     }
     .card p {
-        margin: 4px 0;
+        margin: 0;
         font-size: 15px;
     }
     .big-title {
         font-size: 26px;
         font-weight: bold;
-        color: #1a7431;
+        color: #FF6600;
         margin-bottom: 20px;
     }
     @media (max-width: 768px) {
@@ -54,7 +54,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ----------- TÍTULO -----------
-
 st.markdown('<div class="big-title">📦 Localização de Produtos nas Lojas</div>', unsafe_allow_html=True)
 
 # Identificação
@@ -153,12 +152,12 @@ for idx, row in df_filtrado.iterrows():
         "LOCAL INFORMADO": local
     })
 
-# Salva o progresso automaticamente localmente
+# Salva progresso automaticamente
 df_temp = pd.DataFrame(respostas)
 df_temp.to_excel(progresso_path, index=False)
 st.toast("💾 Progresso salvo localmente (automático).", icon="💾")
 
-# Função para salvar no Google Sheets
+# ----------- SALVAR NO GOOGLE SHEETS -----------
 def salvar_google_sheets(respostas):
     try:
         scopes = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
@@ -183,11 +182,11 @@ def salvar_google_sheets(respostas):
     except Exception as e:
         st.error(f"Erro ao salvar no Google Sheets: {e}")
 
-# Botão de envio final
+# ----------- BOTÃO DE ENVIO FINAL -----------
 if st.button("📅 Salvar respostas"):
     df_novas = pd.DataFrame(respostas)
-
     RESP_ARQ = "respostas.xlsx"
+
     if os.path.exists(RESP_ARQ):
         with pd.ExcelWriter(RESP_ARQ, engine='openpyxl', mode='a', if_sheet_exists='overlay') as writer:
             wb = writer.book
