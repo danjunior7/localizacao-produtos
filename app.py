@@ -6,16 +6,38 @@ import gspread
 from google.oauth2.service_account import Credentials
 import re
 
-# Configuração da página
-st.set_page_config(
-    page_title="Localização de Produtos",
-    layout="wide",
-    initial_sidebar_state="auto"
-)
+# ----------- CONFIGURAÇÃO INICIAL ----------
+st.set_page_config(page_title="Localização de Produtos", layout="wide")
 
-# CSS para menu responsivo (oculto no celular, sempre visível no PC)
+# ----------- TEMA VISUAL VERDE -----------
 st.markdown("""
     <style>
+    body, .stApp {
+        background-color: #f4fcf5;
+        font-family: 'Segoe UI', sans-serif;
+    }
+    .card {
+        background-color: #e6f5eb;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 1px 1px 8px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    .card h4 {
+        margin: 0;
+        font-size: 18px;
+        color: #1a7431;
+    }
+    .card p {
+        margin: 4px 0;
+        font-size: 15px;
+    }
+    .big-title {
+        font-size: 26px;
+        font-weight: bold;
+        color: #1a7431;
+        margin-bottom: 20px;
+    }
     @media (max-width: 768px) {
         section[data-testid="stSidebar"] {
             transform: translateX(-100%);
@@ -31,7 +53,9 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("📦 Localização de Produtos nas Lojas")
+# ----------- TÍTULO -----------
+
+st.markdown('<div class="big-title">📦 Localização de Produtos nas Lojas</div>', unsafe_allow_html=True)
 
 # Identificação
 st.subheader("👤 Identificação")
@@ -94,23 +118,26 @@ if df_filtrado.empty:
 st.subheader(f"📝 Pesquisa: {pesquisa_selecionada}")
 
 for idx, row in df_filtrado.iterrows():
-    st.markdown("---")
-    st.markdown(f"**🛍️ Produto:** {row['DESCRIÇÃO']}")
-    st.markdown(f"**🔢 Código Interno:** {row.get('COD.INT', '---')}")
-    st.markdown(f"**📦 Estoque:** {row.get('ESTOQUE', '---')}")
-    st.markdown(f"**📆 Dias sem movimentação:** {row.get('DIAS SEM MOVIMENTAÇÃO', '---')}")
-    st.markdown(f"**🏷️ EAN:** {row.get('EAN', '---')}")
-    st.markdown(f"**📍 Seção:** {row.get('SEÇÃO', '---')}")
-
-    local_key = f"local_{idx}"
     valor_inicial = progresso_antigo.get(row.get("COD.INT", ""), "")
+    local_key = f"local_{idx}"
 
-    local = st.selectbox(
-        f"📍 Onde está o produto ({row['DESCRIÇÃO']}):",
-        ["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"],
-        key=local_key,
-        index=["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"].index(valor_inicial) if valor_inicial in ["SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"] else 0
-    )
+    with st.container():
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.markdown(f"<h4>🛍️ {row['DESCRIÇÃO']}</h4>", unsafe_allow_html=True)
+        st.markdown(f"<p><b>🔢 Código Interno:</b> {row.get('COD.INT', '---')}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p><b>📦 Estoque:</b> {row.get('ESTOQUE', '---')}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p><b>📆 Dias sem movimentação:</b> {row.get('DIAS SEM MOVIMENTAÇÃO', '---')}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p><b>🏷️ EAN:</b> {row.get('EAN', '---')}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p><b>📍 Seção:</b> {row.get('SEÇÃO', '---')}</p>", unsafe_allow_html=True)
+
+        local = st.selectbox(
+            f"📍 Onde está o produto:",
+            ["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"],
+            key=local_key,
+            index=["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"].index(valor_inicial) if valor_inicial in ["SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"] else 0
+        )
+
+        st.markdown('</div>', unsafe_allow_html=True)
 
     respostas.append({
         "USUÁRIO": nome_usuario,
