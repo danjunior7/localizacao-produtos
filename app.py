@@ -6,59 +6,35 @@ import gspread
 from google.oauth2.service_account import Credentials
 import re
 
-# ----------- CONFIGURAÇÃO INICIAL ----------
-st.set_page_config(page_title="Localização de Produtos", layout="wide")
+# Configuração da página
+st.set_page_config(
+    page_title="Localização de Produtos",
+    layout="wide",
+    initial_sidebar_state="auto"
+)
 
-# ----------- ESTILO ESCURO + CORES ANALI + AJUSTES VISUAIS -----------
+# CSS para menu responsivo (oculto no celular, sempre visível no PC)
 st.markdown("""
     <style>
-    body, .stApp {
-        background-color: #111;
-        color: #f0f0f0;
-    }
-    section[data-testid="stSidebar"] {
-        background-color: #1c1c1c !important;
-    }
-    .card {
-        background-color: #1c1c1c;
-        border-left: 5px solid #FF6600;
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 20px;
-        box-shadow: 0 0 8px rgba(255,102,0,0.1);
-    }
-    .card h4 {
-        color: #FF6600;
-        margin-bottom: 10px;
-    }
-    .card p {
-        font-size: 15px;
-        margin: 3px 0;
-    }
-    .big-title {
-        font-size: 28px;
-        font-weight: bold;
-        color: #FF6600;
-        margin-bottom: 25px;
-    }
-    .stAlert > div {
-        background-color: #332200;
-        color: #FF6600;
-    }
-    div.stButton > button:first-child {
-        background-color: #FF6600;
-        color: white;
-        border: none;
-        padding: 0.5em 1em;
-        font-weight: bold;
-        border-radius: 5px;
+    @media (max-width: 768px) {
+        section[data-testid="stSidebar"] {
+            transform: translateX(-100%);
+            transition: all 0.3s ease-in-out;
+            position: fixed;
+            z-index: 1000;
+            height: 100%;
+        }
+        section[data-testid="stSidebar"][aria-expanded="true"] {
+            transform: translateX(0%);
+        }
     }
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="big-title">📦 <span style="color:#FF6600">Localização de Produtos nas Lojas</span></div>', unsafe_allow_html=True)
+st.title("📦 Localização de Produtos nas Lojas")
 
-st.subheader("<span style='color:#164194'>🧑 Identificação</span>", unsafe_allow_html=True)
+# Identificação
+st.subheader("👤 Identificação")
 nome_usuario = st.text_input("Digite seu nome:").strip()
 data_preenchimento = st.date_input("Data de preenchimento:", value=datetime.date.today())
 
@@ -66,6 +42,7 @@ if not nome_usuario:
     st.warning("⚠️ Por favor, digite seu nome para continuar.")
     st.stop()
 
+# Carrega dados
 try:
     df = pd.read_excel("Feedback_Localizacao.xlsx")
 except FileNotFoundError:
@@ -76,6 +53,7 @@ if "PESQUISA" not in df.columns:
     st.error("❌ A planilha precisa da coluna 'PESQUISA'.")
     st.stop()
 
+# Pesquisa
 pesquisas = sorted(df["PESQUISA"].dropna().unique())
 options = []
 mapa = {}
@@ -89,10 +67,12 @@ st.subheader("🔍 Selecione a pesquisa")
 selecionado = st.selectbox("Escolha a pesquisa:", options)
 pesquisa_selecionada = mapa[selecionado]
 
+# Caminho do progresso salvo
 nome_limpo = re.sub(r'\W+', '_', nome_usuario.strip())
 pesquisa_limpa = re.sub(r'\W+', '_', pesquisa_selecionada.strip())
 progresso_path = f"/tmp/progresso_{nome_limpo}_{pesquisa_limpa}.xlsx"
 
+# Carrega progresso salvo se existir
 progresso_antigo = {}
 if os.path.exists(progresso_path):
     try:
@@ -103,6 +83,7 @@ if os.path.exists(progresso_path):
     except:
         st.warning("⚠️ Não foi possível carregar progresso anterior.")
 
+# Exibir os itens da pesquisa
 respostas = []
 df_filtrado = df[df["PESQUISA"] == pesquisa_selecionada].reset_index(drop=True)
 
@@ -113,26 +94,23 @@ if df_filtrado.empty:
 st.subheader(f"📝 Pesquisa: {pesquisa_selecionada}")
 
 for idx, row in df_filtrado.iterrows():
-    valor_inicial = progresso_antigo.get(row.get("COD.INT", ""), "")
+    st.markdown("---")
+    st.markdown(f"**🛍️ Produto:** {row['DESCRIÇÃO']}")
+    st.markdown(f"**🔢 Código Interno:** {row.get('COD.INT', '---')}")
+    st.markdown(f"**📦 Estoque:** {row.get('ESTOQUE', '---')}")
+    st.markdown(f"**📆 Dias sem movimentação:** {row.get('DIAS SEM MOVIMENTAÇÃO', '---')}")
+    st.markdown(f"**🏷️ EAN:** {row.get('EAN', '---')}")
+    st.markdown(f"**📍 Seção:** {row.get('SEÇÃO', '---')}")
+
     local_key = f"local_{idx}"
+    valor_inicial = progresso_antigo.get(row.get("COD.INT", ""), "")
 
-    with st.container():
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.markdown(f"<h4>🛍️ {row['DESCRIÇÃO']}</h4>", unsafe_allow_html=True)
-        st.markdown(f"<p><b>🔢 Código Interno:</b> {row.get('COD.INT', '---')}</p>", unsafe_allow_html=True)
-        st.markdown(f"<p><b>📦 Estoque:</b> {row.get('ESTOQUE', '---')}</p>", unsafe_allow_html=True)
-        st.markdown(f"<p><b>📆 Dias sem movimentação:</b> {row.get('DIAS SEM MOVIMENTAÇÃO', '---')}</p>", unsafe_allow_html=True)
-        st.markdown(f"<p><b>🏷️ EAN:</b> {row.get('EAN', '---')}</p>", unsafe_allow_html=True)
-        st.markdown(f"<p><b>📍 Seção:</b> {row.get('SEÇÃO', '---')}</p>", unsafe_allow_html=True)
-
-        local = st.selectbox(
-            f"📍 Onde está o produto:",
-            ["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"],
-            key=local_key,
-            index=["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"].index(valor_inicial) if valor_inicial in ["SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"] else 0
-        )
-
-        st.markdown('</div>', unsafe_allow_html=True)
+    local = st.selectbox(
+        f"📍 Onde está o produto ({row['DESCRIÇÃO']}):",
+        ["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"],
+        key=local_key,
+        index=["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"].index(valor_inicial) if valor_inicial in ["SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"] else 0
+    )
 
     respostas.append({
         "USUÁRIO": nome_usuario,
@@ -148,17 +126,19 @@ for idx, row in df_filtrado.iterrows():
         "LOCAL INFORMADO": local
     })
 
+# Salva o progresso automaticamente localmente
 df_temp = pd.DataFrame(respostas)
 df_temp.to_excel(progresso_path, index=False)
 st.toast("💾 Progresso salvo localmente (automático).", icon="💾")
 
-
+# Função para salvar no Google Sheets
 def salvar_google_sheets(respostas):
     try:
         scopes = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
         creds_dict = dict(st.secrets["google_service_account"])
         creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
         client = gspread.authorize(creds)
+
         planilha = client.open("Respostas Pesquisa")
 
         for resposta in respostas:
@@ -168,6 +148,7 @@ def salvar_google_sheets(respostas):
             except gspread.exceptions.WorksheetNotFound:
                 aba = planilha.add_worksheet(title=nome_aba, rows="1000", cols="20")
                 aba.append_row(list(resposta.keys()))
+
             aba.append_row(list(resposta.values()))
 
         st.success("✅ Respostas enviadas para o Google Sheets com sucesso!")
@@ -175,8 +156,10 @@ def salvar_google_sheets(respostas):
     except Exception as e:
         st.error(f"Erro ao salvar no Google Sheets: {e}")
 
+# Botão de envio final
 if st.button("📅 Salvar respostas"):
     df_novas = pd.DataFrame(respostas)
+
     RESP_ARQ = "respostas.xlsx"
     if os.path.exists(RESP_ARQ):
         with pd.ExcelWriter(RESP_ARQ, engine='openpyxl', mode='a', if_sheet_exists='overlay') as writer:
