@@ -59,14 +59,33 @@ if autenticado:
     st.sidebar.title("Painel Administrativo")
     opcao = st.sidebar.radio("Navegação", ["Painel de Controle", "📊 Dashboard"])
 
-    # ----------- LEITURA DE DADOS --------
-    CAMINHO_ARQUIVO = '/tmp/progresso_nome_pesquisa.xlsx'
-    if not os.path.exists(CAMINHO_ARQUIVO):
-        st.error("❌ Nenhum arquivo encontrado com os dados.")
-        st.stop()
+    # ----------- LEITURA DE DADOS DE TODAS AS ABAS DO GOOGLE SHEETS -----------
+    scopes = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+    credentials = Credentials.from_service_account_info(
+        st.secrets["gcp_service_account"],
+        scopes=scopes
+    )
 
-    df = pd.read_excel(CAMINHO_ARQUIVO)
-    df['DATA_REGISTRO'] = pd.to_datetime(df['DATA_REGISTRO'], errors='coerce')
+    gc = gspread.authorize(credentials)
+    SHEET_ID = "1Zl6JTKgfjwLI0JNyz5CFIhgx8nbshTk8TicFcv8h7mU"
+
+    try:
+        planilha = gc.open_by_key(SHEET_ID)
+        abas = planilha.worksheets()
+        
+        df_lista = []
+        for aba in abas:
+            dados = aba.get_all_records()
+            if dados:  # só adiciona se houver dados
+                df_temp = pd.DataFrame(dados)
+                df_temp['LOJA'] = aba.title
+                df_lista.append(df_temp)
+
+        df = pd.concat(df_lista, ignore_index=True)
+        df['DATA_REGISTRO'] = pd.to_datetime(df['DATA_REGISTRO'], errors='coerce')
+    except Exception as e:
+        st.error(f"Erro ao carregar os dados do Google Sheets: {e}")
+        st.stop()
 
     # ----------- PAINEL DE CONTROLE -----------
     if opcao == "Painel de Controle":
