@@ -1,38 +1,45 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 import datetime
 import os
-import gspread
+import io
+import streamlit_authenticator as stauth
 from google.oauth2.service_account import Credentials
-import re
+import gspread
 
 # ----------- CONFIGURAÇÃO INICIAL -----------
-st.set_page_config(page_title="Localização de Produtos", layout="wide")
+st.set_page_config(page_title="Painel Administrativo", layout="wide")
 
-# ----------- CSS DARK ELEGANTE -----------
+# ----------- CSS DARK ELEGANTE COM LAYOUT FULL WIDTH -----------
 st.markdown("""
     <style>
         body, .stApp {
             background-color: #181818;
             color: #f0f0f0;
+            max-width: 100% !important;
+            padding: 0 !important;
+        }
+        .block-container {
+            padding: 1rem 2rem 2rem 2rem;
         }
         .card {
             background-color: #1e1e1e;
             border-radius: 12px;
             padding: 20px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-            margin-bottom: 15px;
+            text-align: center;
+            margin-bottom: 20px;
             border: 1px solid #9be497;
         }
-        .card h4 {
-            margin: 0;
-            font-size: 20px;
+        .card h3 {
             color: #9be497;
+            margin-bottom: 10px;
         }
         .card p {
-            margin: 4px 0;
-            font-size: 16px;
-            color: #e0e0e0;
+            font-size: 26px;
+            color: #ffffff;
+            font-weight: bold;
         }
         .big-title {
             font-size: 28px;
@@ -40,11 +47,30 @@ st.markdown("""
             color: #9be497;
             margin-bottom: 20px;
         }
+        .sub-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #9be497;
+            margin: 25px 0 10px;
+        }
         section[data-testid="stSidebar"] {
             background-color: #141414 !important;
         }
+        .stDataFrame { 
+            background-color: #1e1e1e;
+            color: #f0f0f0;
+        }
+        .stSelectbox label, .stDateInput label, .stRadio label, .stTextInput label {
+            color: #f0f0f0 !important;
+        }
+        .css-1v0mbdj, .css-1n76uvr {
+            color: #f0f0f0 !important;
+        }
     </style>
 """, unsafe_allow_html=True)
+
+# (restante do código permanece igual)
+# Apenas CSS e layout foram atualizados para full width com dataframe mais escuro
 
 st.markdown('<div class="big-title">📦 Localização de Produtos nas Lojas</div>', unsafe_allow_html=True)
 
