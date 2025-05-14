@@ -11,17 +11,15 @@ import gspread
 # ----------- CONFIGURAÇÃO INICIAL -----------
 st.set_page_config(page_title="Painel Administrativo", layout="wide")
 
-# ----------- CSS DARK ELEGANTE COM LAYOUT FULL WIDTH -----------
+# ----------- CSS DARK ELEGANTE AJUSTADO -----------
 st.markdown("""
     <style>
         body, .stApp {
             background-color: #181818;
             color: #f0f0f0;
-            max-width: 100% !important;
-            padding: 0 !important;
         }
         .block-container {
-            padding: 1rem 2rem 2rem 2rem;
+            padding: 1rem 2rem;
         }
         .card {
             background-color: #1e1e1e;
@@ -56,18 +54,30 @@ st.markdown("""
         section[data-testid="stSidebar"] {
             background-color: #141414 !important;
         }
-        .stDataFrame { 
+        .stDataFrame, .stTable { 
             background-color: #1e1e1e;
             color: #f0f0f0;
         }
-        .stSelectbox label, .stDateInput label, .stRadio label, .stTextInput label {
-            color: #f0f0f0 !important;
+        input, .stTextInput > div > input, .stDateInput > div > input {
+            background-color: #f7f7f7 !important;
+            color: #000 !important;
+            border-radius: 8px;
         }
-        .css-1v0mbdj, .css-1n76uvr {
-            color: #f0f0f0 !important;
+        .stSelectbox > div[data-baseweb="select"] > div {
+            background-color: #f7f7f7 !important;
+            color: #000 !important;
+            border-radius: 8px;
+        }
+        .stAlert {
+            background-color: #333 !important;
+            color: #fff !important;
         }
     </style>
 """, unsafe_allow_html=True)
+
+# (restante do código permanece igual)
+# Estilo ajustado para melhorar o contraste dos inputs e manter o dark theme harmonizado
+
 
 # (restante do código permanece igual)
 # Apenas CSS e layout foram atualizados para full width com dataframe mais escuro
