@@ -11,15 +11,20 @@ import gspread
 # ----------- CONFIGURAÇÃO INICIAL -----------
 st.set_page_config(page_title="Painel Administrativo", layout="wide")
 
-# ----------- CSS DARK ELEGANTE -----------
+# ----------- CSS DARK ELEGANTE COM LAYOUT FULL WIDTH -----------
 st.markdown("""
     <style>
         body, .stApp {
             background-color: #181818;
             color: #f0f0f0;
+            max-width: 100% !important;
+            padding: 0 !important;
+        }
+        .block-container {
+            padding: 1rem 2rem 2rem 2rem;
         }
         .card {
-            background-color: #1f1f1f;
+            background-color: #1e1e1e;
             border-radius: 12px;
             padding: 20px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.3);
@@ -51,6 +56,10 @@ st.markdown("""
         section[data-testid="stSidebar"] {
             background-color: #141414 !important;
         }
+        .stDataFrame { 
+            background-color: #1e1e1e;
+            color: #f0f0f0;
+        }
         .stSelectbox label, .stDateInput label, .stRadio label, .stTextInput label {
             color: #f0f0f0 !important;
         }
@@ -59,6 +68,10 @@ st.markdown("""
         }
     </style>
 """, unsafe_allow_html=True)
+
+# (restante do código permanece igual)
+# Apenas CSS e layout foram atualizados para full width com dataframe mais escuro
+
 
 # ----------- AUTENTICAÇÃO -----------
 hashed_passwords = stauth.Hasher(['123', '321']).generate()
