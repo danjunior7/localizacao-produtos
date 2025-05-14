@@ -8,92 +8,70 @@ import streamlit_authenticator as stauth
 from google.oauth2.service_account import Credentials
 import gspread
 
-# ----------- CONFIGURAÇÃO INICIAL -----------
+# ----------- CONFIGURAÇÃO INICIAL ----------
 st.set_page_config(page_title="Painel Administrativo", layout="wide")
 
-# ----------- CSS DARK ELEGANTE AJUSTADO -----------
+# ----------- ESTILO GLOBAL VISUAL PRO (VERDE) -----------
 st.markdown("""
     <style>
+        /* Fundo geral claro */
         body, .stApp {
-            background-color: #181818;
-            color: #f0f0f0;
+            background-color: #f8fdf8;
         }
-        .block-container {
-            padding: 1rem 2rem;
-        }
+        /* Indicadores bonitos */
         .card {
-            background-color: #1e1e1e;
+            background-color: #e0f7e9;
             border-radius: 12px;
             padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-            text-align: center;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
             margin-bottom: 20px;
-            border: 1px solid #9be497;
+            text-align: center;
         }
         .card h3 {
-            color: #9be497;
-            margin-bottom: 10px;
+            margin: 0;
+            font-size: 22px;
+            color: #1a7431;
         }
         .card p {
-            font-size: 26px;
-            color: #ffffff;
+            font-size: 28px;
             font-weight: bold;
+            color: #1a7431;
         }
         .big-title {
             font-size: 28px;
             font-weight: 700;
-            color: #9be497;
-            margin-bottom: 20px;
+            color: #1a7431;
+            margin-bottom: 10px;
         }
         .sub-title {
             font-size: 20px;
             font-weight: 600;
-            color: #9be497;
-            margin: 25px 0 10px;
-        }
-        section[data-testid="stSidebar"] {
-            background-color: #141414 !important;
-        }
-        .stDataFrame, .stTable { 
-            background-color: #1e1e1e;
-            color: #f0f0f0;
-        }
-        input, .stTextInput > div > input, .stDateInput > div > input {
-            background-color: #f7f7f7 !important;
-            color: #000 !important;
-            border-radius: 8px;
-        }
-        .stSelectbox > div[data-baseweb="select"] > div {
-            background-color: #f7f7f7 !important;
-            color: #000 !important;
-            border-radius: 8px;
-        }
-        .stAlert {
-            background-color: #333 !important;
-            color: #fff !important;
+            margin-top: 20px;
+            margin-bottom: 5px;
         }
     </style>
 """, unsafe_allow_html=True)
 
-# (restante do código permanece igual)
-# Estilo ajustado para melhorar o contraste dos inputs e manter o dark theme harmonizado
-
-
-# (restante do código permanece igual)
-# Apenas CSS e layout foram atualizados para full width com dataframe mais escuro
-
-
-# ----------- AUTENTICAÇÃO -----------
+# ----------- AUTENTICAÇÃO ----------
 hashed_passwords = stauth.Hasher(['123', '321']).generate()
 
 credentials = {
     "usernames": {
-        "robson": {"name": "Robson", "password": hashed_passwords[0]},
-        "erica": {"name": "Erica", "password": hashed_passwords[1]}
+        "robson": {
+            "name": "Robson",
+            "password": hashed_passwords[0]
+        },
+        "erica": {
+            "name": "Erica",
+            "password": hashed_passwords[1]
+        }
     }
 }
 
-authenticator = stauth.Authenticate(credentials, "painel_admin", "abcdef", cookie_expiry_days=30)
+authenticator = stauth.Authenticate(
+    credentials,
+    "painel_admin", "abcdef", cookie_expiry_days=30
+)
 
 nome, autenticado, nome_usuario = authenticator.login('Login', 'main')
 
@@ -101,34 +79,40 @@ if autenticado:
     authenticator.logout("Logout", "sidebar")
     st.sidebar.write(f"Bem-vindo, {nome} 👋")
 
+    # ----------- BOTÃO DE LIMPAR ARQUIVO TEMPORÁRIO -----------
     CAMINHO_ARQUIVO_TEMP = "/tmp/progresso_nome_pesquisa.xlsx"
     if st.sidebar.button("🗑️ Limpar salvamento automático"):
         if os.path.exists(CAMINHO_ARQUIVO_TEMP):
             os.remove(CAMINHO_ARQUIVO_TEMP)
-            st.sidebar.success("Arquivo temporário removido!")
+            st.sidebar.success("Arquivo temporário removido com sucesso!")
         else:
             st.sidebar.info("Nenhum arquivo para limpar.")
 
+    # ----------- MENU LATERAL -----------
     st.sidebar.title("Painel Administrativo")
     opcao = st.sidebar.radio("Navegação", ["Painel de Controle", "📊 Dashboard"])
 
-    # ----------- GOOGLE SHEETS -----------
+    # ----------- LEITURA DOS DADOS GOOGLE SHEETS -----------
     scopes = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
-    credentials = Credentials.from_service_account_info(st.secrets["google_service_account"], scopes=scopes)
+    credentials = Credentials.from_service_account_info(
+        st.secrets["google_service_account"],
+        scopes=scopes
+    )
     gc = gspread.authorize(credentials)
     SHEET_ID = "1Zl6JTKgfjwLI0JNyz5CFIhgx8nbshTk8TicFcv8h7mU"
 
     try:
         planilha = gc.open_by_key(SHEET_ID)
         abas = planilha.worksheets()
-        df_lista = []
 
+        df_lista = []
         for aba in abas:
             dados = aba.get_all_records()
             if dados:
                 df_temp = pd.DataFrame(dados)
                 df_temp['LOJA'] = aba.title
                 if 'DATA' not in df_temp.columns:
+                    st.warning(f"A aba '{aba.title}' não possui a coluna 'DATA'. Ignorada.")
                     continue
                 df_lista.append(df_temp)
 
@@ -143,20 +127,22 @@ if autenticado:
         st.error(f"Erro ao carregar planilha: {e}")
         st.stop()
 
+    # ----------- PAINEL DE CONTROLE -----------
     if opcao == "Painel de Controle":
         st.markdown('<div class="big-title">🛠️ Painel de Controle</div>', unsafe_allow_html=True)
         st.dataframe(df)
 
+    # ----------- DASHBOARD -----------
     elif opcao == "📊 Dashboard":
         st.markdown('<div class="big-title">📊 Dashboard de Localização</div>', unsafe_allow_html=True)
 
+        # ----------- FILTROS -----------
         st.sidebar.subheader("🔎 Filtros")
         lojas = st.sidebar.multiselect("Filtrar por loja", df['LOJA'].dropna().unique(), default=df['LOJA'].dropna().unique())
         df = df[df['LOJA'].isin(lojas)]
 
         periodo = st.sidebar.selectbox("Período", ["Últimos 7 dias", "Últimos 15 dias", "Últimos 30 dias", "Intervalo personalizado"])
         hoje = datetime.date.today()
-
         if periodo == "Últimos 7 dias":
             df = df[df['DATA'].dt.date >= hoje - datetime.timedelta(days=7)]
         elif periodo == "Últimos 15 dias":
@@ -168,16 +154,18 @@ if autenticado:
             fim = st.sidebar.date_input("Fim", hoje)
             df = df[(df['DATA'].dt.date >= inicio) & (df['DATA'].dt.date <= fim)]
 
+        # ----------- INDICADORES EM CARDS -----------
         total_registros = len(df)
         loja_destaque = df['LOJA'].value_counts().idxmax() if not df.empty else "N/A"
 
         st.markdown('<div class="sub-title">📈 Indicadores</div>', unsafe_allow_html=True)
         col1, col2 = st.columns(2)
         with col1:
-            st.markdown(f'<div class="card"><h3>Total de Registros</h3><p>{total_registros}</p></div>', unsafe_allow_html=True)
+            st.markdown('<div class="card"><h3>Total de Registros</h3><p>{}</p></div>'.format(total_registros), unsafe_allow_html=True)
         with col2:
-            st.markdown(f'<div class="card"><h3>Loja com Mais Registros</h3><p>{loja_destaque}</p></div>', unsafe_allow_html=True)
+            st.markdown('<div class="card"><h3>Loja com Mais Registros</h3><p>{}</p></div>'.format(loja_destaque), unsafe_allow_html=True)
 
+        # ----------- GRÁFICOS -----------
         st.markdown('<div class="sub-title">📦 Produtos mais Buscados</div>', unsafe_allow_html=True)
         top_produtos = df['DESCRIÇÃO'].value_counts().head(10).reset_index()
         top_produtos.columns = ['DESCRIÇÃO', 'TOTAL']
@@ -192,20 +180,20 @@ if autenticado:
         tendencia = df.groupby(df['DATA'].dt.date).size().reset_index(name='TOTAL')
         st.plotly_chart(px.line(tendencia, x='DATA', y='TOTAL'), use_container_width=True)
 
+        # ----------- TABELA -----------
         st.markdown('<div class="sub-title">📋 Registros</div>', unsafe_allow_html=True)
         st.dataframe(df[['DESCRIÇÃO', 'LOJA', 'USUÁRIO', 'DATA', 'LOCAL INFORMADO']])
 
+        # ----------- EXPORTAÇÃO -----------
         st.markdown('<div class="sub-title">📤 Exportar Dados</div>', unsafe_allow_html=True)
         exportar = df.copy()
         exportar['DATA'] = exportar['DATA'].dt.strftime("%d/%m/%Y")
         col1, col2 = st.columns(2)
-
         with col1:
             excel_buffer = io.BytesIO()
             with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
                 exportar.to_excel(writer, index=False, sheet_name='Exportação')
             st.download_button("⬇️ Baixar Excel", data=excel_buffer.getvalue(), file_name="export.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
         with col2:
             csv_buffer = exportar.to_csv(index=False).encode('utf-8')
             st.download_button("⬇️ Baixar CSV", data=csv_buffer, file_name="export.csv", mime="text/csv")

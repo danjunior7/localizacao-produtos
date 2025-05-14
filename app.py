@@ -1,80 +1,39 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 import datetime
 import os
-import io
-import streamlit_authenticator as stauth
-from google.oauth2.service_account import Credentials
 import gspread
+from google.oauth2.service_account import Credentials
+import re
 
-# ----------- CONFIGURAÇÃO INICIAL -----------
-st.set_page_config(page_title="Painel Administrativo", layout="wide")
+# Configuração da página
+st.set_page_config(
+    page_title="Localização de Produtos",
+    layout="wide",
+    initial_sidebar_state="auto"
+)
 
-# ----------- CSS DARK ELEGANTE COM LAYOUT FULL WIDTH -----------
+# CSS para menu responsivo (oculto no celular, sempre visível no PC)
 st.markdown("""
     <style>
-        body, .stApp {
-            background-color: #181818;
-            color: #f0f0f0;
-            max-width: 100% !important;
-            padding: 0 !important;
-        }
-        .block-container {
-            padding: 1rem 2rem 2rem 2rem;
-        }
-        .card {
-            background-color: #1e1e1e;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-            text-align: center;
-            margin-bottom: 20px;
-            border: 1px solid #9be497;
-        }
-        .card h3 {
-            color: #9be497;
-            margin-bottom: 10px;
-        }
-        .card p {
-            font-size: 26px;
-            color: #ffffff;
-            font-weight: bold;
-        }
-        .big-title {
-            font-size: 28px;
-            font-weight: 700;
-            color: #9be497;
-            margin-bottom: 20px;
-        }
-        .sub-title {
-            font-size: 20px;
-            font-weight: 600;
-            color: #9be497;
-            margin: 25px 0 10px;
-        }
+    @media (max-width: 768px) {
         section[data-testid="stSidebar"] {
-            background-color: #141414 !important;
+            transform: translateX(-100%);
+            transition: all 0.3s ease-in-out;
+            position: fixed;
+            z-index: 1000;
+            height: 100%;
         }
-        .stDataFrame { 
-            background-color: #1e1e1e;
-            color: #f0f0f0;
+        section[data-testid="stSidebar"][aria-expanded="true"] {
+            transform: translateX(0%);
         }
-        .stSelectbox label, .stDateInput label, .stRadio label, .stTextInput label {
-            color: #f0f0f0 !important;
-        }
-        .css-1v0mbdj, .css-1n76uvr {
-            color: #f0f0f0 !important;
-        }
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# (restante do código permanece igual)
-# Apenas CSS e layout foram atualizados para full width com dataframe mais escuro
+st.title("📦 Localização de Produtos nas Lojas")
 
-st.markdown('<div class="big-title">📦 Localização de Produtos nas Lojas</div>', unsafe_allow_html=True)
-
-# ----------- IDENTIFICAÇÃO -----------
+# Identificação
 st.subheader("👤 Identificação")
 nome_usuario = st.text_input("Digite seu nome:").strip()
 data_preenchimento = st.date_input("Data de preenchimento:", value=datetime.date.today())
@@ -83,7 +42,7 @@ if not nome_usuario:
     st.warning("⚠️ Por favor, digite seu nome para continuar.")
     st.stop()
 
-# ----------- CARREGA PLANILHA -----------
+# Carrega dados
 try:
     df = pd.read_excel("Feedback_Localizacao.xlsx")
 except FileNotFoundError:
@@ -94,31 +53,37 @@ if "PESQUISA" not in df.columns:
     st.error("❌ A planilha precisa da coluna 'PESQUISA'.")
     st.stop()
 
-# ----------- SELECIONA PESQUISA -----------
+# Pesquisa
 pesquisas = sorted(df["PESQUISA"].dropna().unique())
-options = [f"{p}" for p in pesquisas]
-mapa = {p: p for p in pesquisas}
+options = []
+mapa = {}
+
+for pesq in pesquisas:
+    label = f"{pesq}"
+    options.append(label)
+    mapa[label] = pesq
 
 st.subheader("🔍 Selecione a pesquisa")
 selecionado = st.selectbox("Escolha a pesquisa:", options)
 pesquisa_selecionada = mapa[selecionado]
 
-# ----------- PROGRESSO LOCAL TEMP -----------
+# Caminho do progresso salvo
 nome_limpo = re.sub(r'\W+', '_', nome_usuario.strip())
 pesquisa_limpa = re.sub(r'\W+', '_', pesquisa_selecionada.strip())
 progresso_path = f"/tmp/progresso_{nome_limpo}_{pesquisa_limpa}.xlsx"
 
+# Carrega progresso salvo se existir
 progresso_antigo = {}
 if os.path.exists(progresso_path):
     try:
         df_antigo = pd.read_excel(progresso_path)
         for _, row in df_antigo.iterrows():
             progresso_antigo[row["COD.INT"]] = row["LOCAL INFORMADO"]
-        st.info("🔄 Progresso anterior carregado.")
+        st.info("🔄 Progresso anterior carregado automaticamente.")
     except:
         st.warning("⚠️ Não foi possível carregar progresso anterior.")
 
-# ----------- FILTRA DADOS -----------
+# Exibir os itens da pesquisa
 respostas = []
 df_filtrado = df[df["PESQUISA"] == pesquisa_selecionada].reset_index(drop=True)
 
@@ -126,19 +91,19 @@ if df_filtrado.empty:
     st.warning("⚠️ Nenhum produto encontrado nesta pesquisa.")
     st.stop()
 
-st.markdown(f"<h4 style='color:#9be497;'>📝 Pesquisa: <strong>{pesquisa_selecionada}</strong></h4>", unsafe_allow_html=True)
+st.subheader(f"📝 Pesquisa: {pesquisa_selecionada}")
 
 for idx, row in df_filtrado.iterrows():
-    valor_inicial = progresso_antigo.get(row.get("COD.INT", ""), "")
-    local_key = f"local_{idx}"
+    st.markdown("---")
+    st.markdown(f"**🛍️ Produto:** {row['DESCRIÇÃO']}")
+    st.markdown(f"**🔢 Código Interno:** {row.get('COD.INT', '---')}")
+    st.markdown(f"**📦 Estoque:** {row.get('ESTOQUE', '---')}")
+    st.markdown(f"**📆 Dias sem movimentação:** {row.get('DIAS SEM MOVIMENTAÇÃO', '---')}")
+    st.markdown(f"**🏷️ EAN:** {row.get('EAN', '---')}")
+    st.markdown(f"**📍 Seção:** {row.get('SEÇÃO', '---')}")
 
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
-    st.markdown(f"<h4>🛍️ {row['DESCRIÇÃO']}</h4>", unsafe_allow_html=True)
-    st.markdown(f"<p><strong>🔢 Código Interno:</strong> {row.get('COD.INT', '---')}</p>", unsafe_allow_html=True)
-    st.markdown(f"<p><strong>📦 Estoque:</strong> {row.get('ESTOQUE', '---')}</p>", unsafe_allow_html=True)
-    st.markdown(f"<p><strong>📆 Dias sem movimentação:</strong> {row.get('DIAS SEM MOVIMENTAÇÃO', '---')}</p>", unsafe_allow_html=True)
-    st.markdown(f"<p><strong>🏷️ EAN:</strong> {row.get('EAN', '---')}</p>", unsafe_allow_html=True)
-    st.markdown(f"<p><strong>📍 Seção:</strong> {row.get('SEÇÃO', '---')}</p>", unsafe_allow_html=True)
+    local_key = f"local_{idx}"
+    valor_inicial = progresso_antigo.get(row.get("COD.INT", ""), "")
 
     local = st.selectbox(
         f"📍 Onde está o produto ({row['DESCRIÇÃO']}):",
@@ -146,7 +111,6 @@ for idx, row in df_filtrado.iterrows():
         key=local_key,
         index=["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"].index(valor_inicial) if valor_inicial in ["SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"] else 0
     )
-    st.markdown("</div>", unsafe_allow_html=True)
 
     respostas.append({
         "USUÁRIO": nome_usuario,
@@ -162,17 +126,19 @@ for idx, row in df_filtrado.iterrows():
         "LOCAL INFORMADO": local
     })
 
-# ----------- SALVA PROGRESSO LOCAL -----------
-pd.DataFrame(respostas).to_excel(progresso_path, index=False)
-st.toast("💾 Progresso salvo localmente.", icon="💾")
+# Salva o progresso automaticamente localmente
+df_temp = pd.DataFrame(respostas)
+df_temp.to_excel(progresso_path, index=False)
+st.toast("💾 Progresso salvo localmente (automático).", icon="💾")
 
-# ----------- ENVIA PARA GOOGLE SHEETS -----------
+# Função para salvar no Google Sheets
 def salvar_google_sheets(respostas):
     try:
         scopes = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
         creds_dict = dict(st.secrets["google_service_account"])
         creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
         client = gspread.authorize(creds)
+
         planilha = client.open("Respostas Pesquisa")
 
         for resposta in respostas:
@@ -182,6 +148,7 @@ def salvar_google_sheets(respostas):
             except gspread.exceptions.WorksheetNotFound:
                 aba = planilha.add_worksheet(title=nome_aba, rows="1000", cols="20")
                 aba.append_row(list(resposta.keys()))
+
             aba.append_row(list(resposta.values()))
 
         st.success("✅ Respostas enviadas para o Google Sheets com sucesso!")
@@ -189,11 +156,11 @@ def salvar_google_sheets(respostas):
     except Exception as e:
         st.error(f"Erro ao salvar no Google Sheets: {e}")
 
-# ----------- BOTÃO FINAL -----------
+# Botão de envio final
 if st.button("📅 Salvar respostas"):
     df_novas = pd.DataFrame(respostas)
-    RESP_ARQ = "respostas.xlsx"
 
+    RESP_ARQ = "respostas.xlsx"
     if os.path.exists(RESP_ARQ):
         with pd.ExcelWriter(RESP_ARQ, engine='openpyxl', mode='a', if_sheet_exists='overlay') as writer:
             wb = writer.book
