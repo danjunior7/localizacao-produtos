@@ -11,70 +11,72 @@ import gspread
 # ----------- CONFIGURAÇÃO INICIAL ----------
 st.set_page_config(page_title="Painel Administrativo", layout="wide")
 
-# ----------- TEMA ESCURO VISUAL PRO -----------
+# ----------- TEMA ESCURO COM ESTILO VERDE -----------
 st.markdown("""
     <style>
         body, .stApp {
             background-color: #111;
-            color: #f1f1f1;
+            color: #fff;
         }
         .card {
             background-color: #1e1e1e;
             border-radius: 12px;
             padding: 20px;
-            box-shadow: 2px 2px 10px rgba(0,0,0,0.5);
-            margin-bottom: 20px;
-            border-left: 5px solid #00ff88;
+            box-shadow: 2px 2px 8px rgba(0,0,0,0.4);
             text-align: center;
+            margin-bottom: 20px;
         }
         .card h3 {
-            color: #00ff88;
             margin: 0;
-            font-size: 20px;
+            font-size: 22px;
+            color: #9be497;
         }
         .card p {
             font-size: 28px;
             font-weight: bold;
-            color: #ffffff;
+            color: #fff;
         }
         .big-title {
             font-size: 28px;
             font-weight: 700;
-            color: #00ff88;
-            margin-bottom: 15px;
+            color: #9be497;
+            margin-bottom: 10px;
         }
         .sub-title {
             font-size: 20px;
             font-weight: 600;
-            margin-top: 25px;
-            margin-bottom: 10px;
-            color: #f1f1f1;
+            color: #9be497;
+            margin-top: 20px;
+            margin-bottom: 5px;
+        }
+        section[data-testid="stSidebar"] {
+            background-color: #1a1a1a !important;
+        }
+        .stSelectbox label, .stDateInput label, .stRadio label, .stTextInput label {
+            color: #fff !important;
         }
     </style>
 """, unsafe_allow_html=True)
 
 # ----------- AUTENTICAÇÃO ----------
 hashed_passwords = stauth.Hasher(['123', '321']).generate()
+
 credentials = {
     "usernames": {
-        "robson": {
-            "name": "Robson",
-            "password": hashed_passwords[0]
-        },
-        "erica": {
-            "name": "Erica",
-            "password": hashed_passwords[1]
-        }
+        "robson": {"name": "Robson", "password": hashed_passwords[0]},
+        "erica": {"name": "Erica", "password": hashed_passwords[1]}
     }
 }
+
 authenticator = stauth.Authenticate(credentials, "painel_admin", "abcdef", cookie_expiry_days=30)
+
 nome, autenticado, nome_usuario = authenticator.login('Login', 'main')
 
 if autenticado:
     authenticator.logout("Logout", "sidebar")
     st.sidebar.write(f"Bem-vindo, {nome} 👋")
 
-    # ----------- BOTÃO DE LIMPAR TEMPORÁRIO -----------
+    # ----------- BOTÃO DE LIMPAR ARQUIVO TEMPORÁRIO -----------
     CAMINHO_ARQUIVO_TEMP = "/tmp/progresso_nome_pesquisa.xlsx"
     if st.sidebar.button("🗑️ Limpar salvamento automático"):
         if os.path.exists(CAMINHO_ARQUIVO_TEMP):
@@ -87,16 +89,19 @@ if autenticado:
     st.sidebar.title("Painel Administrativo")
     opcao = st.sidebar.radio("Navegação", ["Painel de Controle", "📊 Dashboard"])
 
-    # ----------- CONEXÃO COM GOOGLE SHEETS -----------
+    # ----------- LEITURA DO GOOGLE SHEETS -----------
     scopes = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
     credentials = Credentials.from_service_account_info(
-        st.secrets["google_service_account"], scopes=scopes)
+        st.secrets["google_service_account"],
+        scopes=scopes
+    )
     gc = gspread.authorize(credentials)
     SHEET_ID = "1Zl6JTKgfjwLI0JNyz5CFIhgx8nbshTk8TicFcv8h7mU"
 
     try:
         planilha = gc.open_by_key(SHEET_ID)
         abas = planilha.worksheets()
+
         df_lista = []
         for aba in abas:
             dados = aba.get_all_records()
@@ -104,12 +109,11 @@ if autenticado:
                 df_temp = pd.DataFrame(dados)
                 df_temp['LOJA'] = aba.title
                 if 'DATA' not in df_temp.columns:
-                    st.warning(f"A aba '{aba.title}' não possui a coluna 'DATA'. Ignorada.")
                     continue
                 df_lista.append(df_temp)
 
         if not df_lista:
-            st.error("Nenhuma aba válida com coluna 'DATA'.")
+            st.error("Nenhuma aba válida com a coluna 'DATA'.")
             st.stop()
 
         df = pd.concat(df_lista, ignore_index=True)
@@ -125,11 +129,10 @@ if autenticado:
         st.dataframe(df)
 
     # ----------- DASHBOARD -----------
-
     elif opcao == "📊 Dashboard":
         st.markdown('<div class="big-title">📊 Dashboard de Localização</div>', unsafe_allow_html=True)
 
-        # FILTROS
+        # ----------- FILTROS -----------
         st.sidebar.subheader("🔎 Filtros")
         lojas = st.sidebar.multiselect("Filtrar por loja", df['LOJA'].dropna().unique(), default=df['LOJA'].dropna().unique())
         df = df[df['LOJA'].isin(lojas)]
@@ -147,9 +150,10 @@ if autenticado:
             fim = st.sidebar.date_input("Fim", hoje)
             df = df[(df['DATA'].dt.date >= inicio) & (df['DATA'].dt.date <= fim)]
 
-        # INDICADORES
+        # ----------- INDICADORES -----------
         total_registros = len(df)
         loja_destaque = df['LOJA'].value_counts().idxmax() if not df.empty else "N/A"
+
         st.markdown('<div class="sub-title">📈 Indicadores</div>', unsafe_allow_html=True)
         col1, col2 = st.columns(2)
         with col1:
@@ -157,37 +161,37 @@ if autenticado:
         with col2:
             st.markdown(f'<div class="card"><h3>Loja com Mais Registros</h3><p>{loja_destaque}</p></div>', unsafe_allow_html=True)
 
-        # GRÁFICOS
+        # ----------- GRÁFICOS -----------
         st.markdown('<div class="sub-title">📦 Produtos mais Buscados</div>', unsafe_allow_html=True)
         top_produtos = df['DESCRIÇÃO'].value_counts().head(10).reset_index()
         top_produtos.columns = ['DESCRIÇÃO', 'TOTAL']
-        st.plotly_chart(px.bar(top_produtos, x='TOTAL', y='DESCRIÇÃO', orientation='h',
-                               template="plotly_dark"), use_container_width=True)
+        st.plotly_chart(px.bar(top_produtos, x='TOTAL', y='DESCRIÇÃO', orientation='h'), use_container_width=True)
 
         st.markdown('<div class="sub-title">🏪 Lojas com Mais Registros</div>', unsafe_allow_html=True)
         top_lojas = df['LOJA'].value_counts().reset_index()
         top_lojas.columns = ['LOJA', 'TOTAL']
-        st.plotly_chart(px.pie(top_lojas, names='LOJA', values='TOTAL', template="plotly_dark"), use_container_width=True)
+        st.plotly_chart(px.pie(top_lojas, names='LOJA', values='TOTAL'), use_container_width=True)
 
         st.markdown('<div class="sub-title">📅 Tendência por Data</div>', unsafe_allow_html=True)
         tendencia = df.groupby(df['DATA'].dt.date).size().reset_index(name='TOTAL')
-        st.plotly_chart(px.line(tendencia, x='DATA', y='TOTAL', template="plotly_dark"), use_container_width=True)
+        st.plotly_chart(px.line(tendencia, x='DATA', y='TOTAL'), use_container_width=True)
 
-        # TABELA
-        st.markdown('<div class="sub-title">📋 Registros</div>', unsafe_allow_html=True)
+        # ----------- TABELA DE DADOS -----------
+        st.markdown('<div class="sub-title">📋 Registros Consolidados</div>', unsafe_allow_html=True)
         st.dataframe(df[['DESCRIÇÃO', 'LOJA', 'USUÁRIO', 'DATA', 'LOCAL INFORMADO']])
 
-        # EXPORTAÇÃO
+        # ----------- EXPORTAÇÃO -----------
         st.markdown('<div class="sub-title">📤 Exportar Dados</div>', unsafe_allow_html=True)
         exportar = df.copy()
         exportar['DATA'] = exportar['DATA'].dt.strftime("%d/%m/%Y")
+
         col1, col2 = st.columns(2)
         with col1:
             excel_buffer = io.BytesIO()
             with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
                 exportar.to_excel(writer, index=False, sheet_name='Exportação')
-            st.download_button("⬇️ Baixar Excel", data=excel_buffer.getvalue(),
-                               file_name="export.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            st.download_button("⬇️ Baixar Excel", data=excel_buffer.getvalue(), file_name="export.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
         with col2:
             csv_buffer = exportar.to_csv(index=False).encode('utf-8')
             st.download_button("⬇️ Baixar CSV", data=csv_buffer, file_name="export.csv", mime="text/csv")

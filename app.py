@@ -6,44 +6,65 @@ import gspread
 from google.oauth2.service_account import Credentials
 import re
 
-# Configuração da página
+# ----------- CONFIGURAÇÃO DA PÁGINA -----------
 st.set_page_config(page_title="Localização de Produtos", layout="wide")
 
-# Tema escuro visual customizado
+# ----------- TEMA ESCURO -----------
 st.markdown("""
     <style>
         body, .stApp {
-            background-color: #111;
-            color: #f1f1f1;
+            background-color: #111 !important;
+            color: #fff;
         }
         .card {
             background-color: #1e1e1e;
-            border-radius: 12px;
+            border-radius: 10px;
             padding: 20px;
-            box-shadow: 2px 2px 10px rgba(0,0,0,0.5);
-            margin-bottom: 20px;
-            border-left: 5px solid #00ff88;
+            margin-bottom: 15px;
+            box-shadow: 1px 1px 5px rgba(0,0,0,0.5);
         }
         .card h4 {
-            color: #00ff88;
             margin: 0 0 10px 0;
+            font-size: 20px;
+            color: #9be497;
         }
         .card p {
-            margin: 4px 0;
-            font-size: 15px;
+            margin: 5px 0;
+            font-size: 16px;
+            color: #e0e0e0;
         }
         .big-title {
             font-size: 28px;
             font-weight: 700;
-            color: #00ff88;
-            margin-bottom: 15px;
+            color: #9be497;
+            margin-bottom: 20px;
+        }
+        /* Sidebar escura */
+        section[data-testid="stSidebar"] {
+            background-color: #1a1a1a !important;
+            color: #fff;
+        }
+        section[data-testid="stSidebar"] .css-1v0mbdj, .css-1n76uvr {
+            color: #fff !important;
+        }
+        @media (max-width: 768px) {
+            section[data-testid="stSidebar"] {
+                transform: translateX(-100%);
+                transition: all 0.3s ease-in-out;
+                position: fixed;
+                z-index: 1000;
+                height: 100%;
+            }
+            section[data-testid="stSidebar"][aria-expanded="true"] {
+                transform: translateX(0%);
+            }
         }
     </style>
 """, unsafe_allow_html=True)
 
 st.markdown('<div class="big-title">📦 Localização de Produtos nas Lojas</div>', unsafe_allow_html=True)
 
-# Identificação
+# ----------- IDENTIFICAÇÃO -----------
 st.subheader("👤 Identificação")
 nome_usuario = st.text_input("Digite seu nome:").strip()
 data_preenchimento = st.date_input("Data de preenchimento:", value=datetime.date.today())
@@ -52,7 +73,7 @@ if not nome_usuario:
     st.warning("⚠️ Por favor, digite seu nome para continuar.")
     st.stop()
 
-# Carrega dados
+# ----------- CARREGAMENTO DE DADOS -----------
 try:
     df = pd.read_excel("Feedback_Localizacao.xlsx")
 except FileNotFoundError:
@@ -63,7 +84,7 @@ if "PESQUISA" not in df.columns:
     st.error("❌ A planilha precisa da coluna 'PESQUISA'.")
     st.stop()
 
-# Pesquisa
+# ----------- PESQUISA -----------
 pesquisas = sorted(df["PESQUISA"].dropna().unique())
 options = []
 mapa = {}
@@ -77,12 +98,12 @@ st.subheader("🔍 Selecione a pesquisa")
 selecionado = st.selectbox("Escolha a pesquisa:", options)
 pesquisa_selecionada = mapa[selecionado]
 
-# Caminho do progresso salvo
+# ----------- CAMINHO DO PROGRESSO SALVO -----------
 nome_limpo = re.sub(r'\W+', '_', nome_usuario.strip())
 pesquisa_limpa = re.sub(r'\W+', '_', pesquisa_selecionada.strip())
 progresso_path = f"/tmp/progresso_{nome_limpo}_{pesquisa_limpa}.xlsx"
 
-# Carrega progresso salvo se existir
+# ----------- CARREGAR PROGRESSO ANTIGO -----------
 progresso_antigo = {}
 if os.path.exists(progresso_path):
     try:
@@ -93,7 +114,7 @@ if os.path.exists(progresso_path):
     except:
         st.warning("⚠️ Não foi possível carregar progresso anterior.")
 
-# Exibir os itens da pesquisa
+# ----------- EXIBIR ITENS -----------
 respostas = []
 df_filtrado = df[df["PESQUISA"] == pesquisa_selecionada].reset_index(drop=True)
 
@@ -101,7 +122,7 @@ if df_filtrado.empty:
     st.warning("⚠️ Nenhum produto encontrado nesta pesquisa.")
     st.stop()
 
-st.markdown(f"<h4 style='color:#00ff88;'>📝 Pesquisa: {pesquisa_selecionada}</h4>", unsafe_allow_html=True)
+st.markdown(f"<h4 style='color:#9be497;'>📝 Pesquisa: <strong>{pesquisa_selecionada}</strong></h4>", unsafe_allow_html=True)
 
 for idx, row in df_filtrado.iterrows():
     valor_inicial = progresso_antigo.get(row.get("COD.INT", ""), "")
@@ -122,6 +143,7 @@ for idx, row in df_filtrado.iterrows():
             key=local_key,
             index=["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"].index(valor_inicial) if valor_inicial in ["SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"] else 0
         )
+
         st.markdown("</div>", unsafe_allow_html=True)
 
     respostas.append({
@@ -138,12 +160,12 @@ for idx, row in df_filtrado.iterrows():
         "LOCAL INFORMADO": local
     })
 
-# Salva o progresso automaticamente
+# ----------- SALVAR PROGRESSO LOCAL -----------
 df_temp = pd.DataFrame(respostas)
 df_temp.to_excel(progresso_path, index=False)
 st.toast("💾 Progresso salvo localmente (automático).", icon="💾")
 
-# Função para salvar no Google Sheets
+# ----------- SALVAR NO GOOGLE SHEETS -----------
 def salvar_google_sheets(respostas):
     try:
         scopes = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
@@ -160,7 +182,6 @@ def salvar_google_sheets(respostas):
             except gspread.exceptions.WorksheetNotFound:
                 aba = planilha.add_worksheet(title=nome_aba, rows="1000", cols="20")
                 aba.append_row(list(resposta.keys()))
-
             aba.append_row(list(resposta.values()))
 
         st.success("✅ Respostas enviadas para o Google Sheets com sucesso!")
@@ -168,7 +189,7 @@ def salvar_google_sheets(respostas):
     except Exception as e:
         st.error(f"Erro ao salvar no Google Sheets: {e}")
 
-# Botão de envio final
+# ----------- BOTÃO DE ENVIO FINAL -----------
 if st.button("📅 Salvar respostas"):
     df_novas = pd.DataFrame(respostas)
     RESP_ARQ = "respostas.xlsx"
