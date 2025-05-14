@@ -134,27 +134,40 @@ st.toast("💾 Progresso salvo localmente (automático).", icon="💾")
 # Função para salvar no Google Sheets
 def salvar_google_sheets(respostas):
     try:
-        scopes = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
+        scopes = [
+            'https://www.googleapis.com/auth/spreadsheets',
+            'https://www.googleapis.com/auth/drive'
+        ]
         creds_dict = dict(st.secrets["google_service_account"])
         creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
         client = gspread.authorize(creds)
 
         planilha = client.open("Respostas Pesquisa")
 
+        # Agrupa respostas por aba (loja)
+        abas_dict = {}
         for resposta in respostas:
             nome_aba = resposta.get("LOJA", "Sem Loja")
+            if nome_aba not in abas_dict:
+                abas_dict[nome_aba] = []
+            abas_dict[nome_aba].append(resposta)
+
+        # Escreve em cada aba de forma otimizada
+        for nome_aba, respostas_da_aba in abas_dict.items():
             try:
                 aba = planilha.worksheet(nome_aba)
             except gspread.exceptions.WorksheetNotFound:
                 aba = planilha.add_worksheet(title=nome_aba, rows="1000", cols="20")
-                aba.append_row(list(resposta.keys()))
+                aba.append_row(list(respostas_da_aba[0].keys()))  # Cabeçalho
 
-            aba.append_row(list(resposta.values()))
+            linhas = [list(resp.values()) for resp in respostas_da_aba]
+            aba.append_rows(linhas)
 
         st.success("✅ Respostas enviadas para o Google Sheets com sucesso!")
 
     except Exception as e:
         st.error(f"Erro ao salvar no Google Sheets: {e}")
+
 
 # Botão de envio final
 if st.button("📅 Salvar respostas"):
