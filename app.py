@@ -96,10 +96,10 @@ st.subheader(f"📝 Pesquisa: {pesquisa_selecionada}")
 for idx, row in df_filtrado.iterrows():
     st.markdown("---")
     st.markdown(f"**🛍️ Produto:** {row['DESCRIÇÃO']}")
+    st.markdown(f"**🏷️ EAN:** {row.get('EAN', '---')}")
     st.markdown(f"**🔢 Código Interno:** {row.get('COD.INT', '---')}")
     st.markdown(f"**📦 Estoque:** {row.get('ESTOQUE', '---')}")
     st.markdown(f"**📆 Dias sem movimentação:** {row.get('DIAS SEM MOVIMENTAÇÃO', '---')}")
-    st.markdown(f"**🏷️ EAN:** {row.get('EAN', '---')}")
     st.markdown(f"**📍 Seção:** {row.get('SEÇÃO', '---')}")
 
     local_key = f"local_{idx}"
