@@ -104,7 +104,7 @@ for idx, row in df_pagina.iterrows():
     validade_inicial = "" if pd.isna(validade_raw) else str(validade_raw)
 
     local = st.selectbox(
-        f"Onde está o produto ({row['DESCRIÇÃO']}):",
+        f"📍 Onde está o produto ({row['DESCRIÇÃO']}):",
         ["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"],
         key=f"local_{cod_int}_{idx}",
         index=["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"].index(valor_inicial)
@@ -112,7 +112,7 @@ for idx, row in df_pagina.iterrows():
     )
 
     validade = st.text_input(
-        f"Validade ({row['DESCRIÇÃO']}):",
+        f"📅 Validade ({row['DESCRIÇÃO']}):",
         value=validade_inicial,
         key=f"validade_{cod_int}_{idx}"
     )
@@ -136,3 +136,83 @@ for idx, row in df_pagina.iterrows():
 df_temp = pd.DataFrame(respostas)
 df_temp.to_excel(progresso_path, index=False)
 st.toast("💾 Progresso salvo localmente.", icon="💾")
+
+# Botões finais
+st.markdown("---")
+col1, col2 = st.columns(2)
+
+with col1:
+    if st.button("📤 Enviar respostas para o Google Sheets"):
+        try:
+            scopes = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
+            creds_dict = dict(st.secrets["google_service_account"])
+            creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+            client = gspread.authorize(creds)
+            planilha = client.open("Respostas Pesquisa")
+
+            abas_dict = {}
+            for resposta in respostas:
+                aba = resposta.get("LOJA", "Sem Loja")
+                if aba not in abas_dict:
+                    abas_dict[aba] = []
+                abas_dict[aba].append(resposta)
+
+            for aba, valores in abas_dict.items():
+                try:
+                    aba_sheet = planilha.worksheet(aba)
+                except:
+                    aba_sheet = planilha.add_worksheet(title=aba, rows="1000", cols="20")
+                    aba_sheet.append_row(list(valores[0].keys()))
+                aba_sheet.append_rows([list(r.values()) for r in valores])
+
+            st.success("✅ Respostas enviadas com sucesso!")
+        except Exception as e:
+            st.error(f"Erro ao salvar no Google Sheets: {e}")
+
+with col2:
+    def exportar_pdf(respostas):
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", "B", 14)
+        pdf.cell(0, 10, f"Relatório de Pesquisa - {pesquisa_selecionada}", ln=True, align="C")
+
+        df_respostas = pd.DataFrame(respostas)
+        total = len(df_respostas)
+        respondidos = df_respostas[df_respostas["LOCAL INFORMADO"] != ""].shape[0]
+        nao_respondidos = total - respondidos
+        por_local = df_respostas["LOCAL INFORMADO"].value_counts()
+
+        pdf.set_font("Arial", "", 12)
+        pdf.ln(10)
+        pdf.cell(0, 10, f"Total de itens: {total}", ln=True)
+        pdf.cell(0, 10, f"Respondidos: {respondidos}", ln=True)
+        pdf.cell(0, 10, f"Não respondidos: {nao_respondidos}", ln=True)
+        for local, qtd in por_local.items():
+            pdf.cell(0, 10, f"{local}: {qtd}", ln=True)
+
+        pdf.ln(10)
+        pdf.set_font("Arial", "B", 12)
+        pdf.cell(0, 10, "Detalhamento por Produto", ln=True)
+        pdf.set_font("Arial", "", 10)
+
+        for r in respostas:
+            pdf.ln(5)
+            pdf.multi_cell(0, 5,
+                f"Produto: {r['DESCRIÇÃO']}\n"
+                f"EAN: {r['EAN']}\n"
+                f"Cód. Interno: {r['COD.INT']} | Estoque: {r['ESTOQUE']}\n"
+                f"Dias sem movimentação: {r['DIAS SEM MOVIMENTAÇÃO']} | Seção: {r['SEÇÃO']}\n"
+                f"Local Informado: {r['LOCAL INFORMADO']} | Validade: {r['VALIDADE']}"
+            )
+
+        caminho_pdf = f"/tmp/relatorio_{nome_limpo}_{pesquisa_limpa}.pdf"
+        pdf.output(caminho_pdf)
+        with open(caminho_pdf, "rb") as f:
+            pdf_data = f.read()
+
+        b64 = base64.b64encode(pdf_data).decode()
+        href = f'<a href="data:application/octet-stream;base64,{b64}" download="relatorio_{pesquisa_limpa}.pdf">📄 Baixar Relatório em PDF</a>'
+        st.markdown(href, unsafe_allow_html=True)
+
+    if st.button("📄 Gerar Relatório em PDF"):
+        exportar_pdf(respostas)
