@@ -57,8 +57,8 @@ if os.path.exists(progresso_path) and not st.session_state.respostas_salvas:
     try:
         df_antigo = pd.read_excel(progresso_path)
         for _, row in df_antigo.iterrows():
-            cod = str(row["COD.INT"]).strip()
-            st.session_state.respostas_salvas[cod] = {
+            chave = f"{row['COD.INT']}|{row['DESCRIÇÃO']}"
+            st.session_state.respostas_salvas[chave] = {
                 "LOCAL INFORMADO": row.get("LOCAL INFORMADO", ""),
                 "VALIDADE": row.get("VALIDADE", "")
             }
@@ -92,27 +92,26 @@ for idx, row in df_pagina.iterrows():
     st.markdown(f"**🏷️ EAN:** {row.get('EAN', '---')}")
     st.markdown(f"**🔢 Código Interno:** {row.get('COD.INT', '---')}")
     st.markdown(f"**📦 Estoque:** {row.get('ESTOQUE', '---')}")
-    st.markdown(f"**📆 Dias sem movimentação:** {row.get('DIAS SEM MOVIMENTAÇÃO', '---')}")
+    st.markdown(f"**🗖️ Dias sem movimentação:** {row.get('DIAS SEM MOVIMENTAÇÃO', '---')}")
     st.markdown(f"**📍 Seção:** {row.get('SEÇÃO', '---')}")
 
-    cod_int = str(row.get("COD.INT", f"vazio_{idx}_{pagina}")).strip()
-    progresso = st.session_state.respostas_salvas.get(cod_int, {"LOCAL INFORMADO": "", "VALIDADE": ""})
+    chave = f"{row.get('COD.INT', idx)}|{row.get('DESCRIÇÃO', '')}"
+    progresso = st.session_state.respostas_salvas.get(chave, {"LOCAL INFORMADO": "", "VALIDADE": ""})
 
     local = st.selectbox(
         f"📍 Onde está o produto ({row['DESCRIÇÃO']}):",
         ["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"],
         index=["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"].index(progresso["LOCAL INFORMADO"]) if progresso["LOCAL INFORMADO"] in ["SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"] else 0,
-        key=f"local_{cod_int}_{idx}_{pagina}"
+        key=f"local_{chave}_{pagina}"
     )
 
     validade = st.text_input(
-        f"📅 Validade ({row['DESCRIÇÃO']}):",
+        f"🗓️ Validade ({row['DESCRIÇÃO']}):",
         value=progresso["VALIDADE"],
-        key=f"validade_{cod_int}_{idx}_{pagina}"
+        key=f"validade_{chave}_{pagina}"
     )
 
-    # Atualiza respostas salvas
-    st.session_state.respostas_salvas[cod_int] = {
+    st.session_state.respostas_salvas[chave] = {
         "LOCAL INFORMADO": local,
         "VALIDADE": validade
     }
@@ -120,15 +119,15 @@ for idx, row in df_pagina.iterrows():
 # Constrói dataframe consolidado
 respostas = []
 for _, row in df_filtrado.iterrows():
-    cod = str(row["COD.INT"]).strip()
-    progresso = st.session_state.respostas_salvas.get(cod, {"LOCAL INFORMADO": "", "VALIDADE": ""})
+    chave = f"{row.get('COD.INT', '')}|{row.get('DESCRIÇÃO', '')}"
+    progresso = st.session_state.respostas_salvas.get(chave, {"LOCAL INFORMADO": "", "VALIDADE": ""})
     respostas.append({
         "USUÁRIO": nome_usuario,
         "DATA": data_preenchimento.strftime('%d/%m/%Y'),
         "PESQUISA": pesquisa_selecionada,
         "LOJA": row.get("LOJA", ""),
         "DESCRIÇÃO": row.get("DESCRIÇÃO", ""),
-        "COD.INT": cod,
+        "COD.INT": row.get("COD.INT", ""),
         "EAN": row.get("EAN", ""),
         "ESTOQUE": row.get("ESTOQUE", ""),
         "DIAS SEM MOVIMENTAÇÃO": row.get("DIAS SEM MOVIMENTAÇÃO", ""),
@@ -139,4 +138,4 @@ for _, row in df_filtrado.iterrows():
 
 # Salva localmente
 pd.DataFrame(respostas).to_excel(progresso_path, index=False)
-st.toast("💾 Progresso salvo localmente.", icon="💾")
+st.toast("📅 Progresso salvo localmente.", icon="📅")
