@@ -202,7 +202,7 @@ col1, col2, col3 = st.columns([2, 3, 2])
 with col1:
     if st.button("⬅️ Anterior") and st.session_state.pagina_atual > 1:
         st.session_state.pagina_atual -= 1
-        st.experimental_rerun()
+        st.rerun()
 with col2:
     st.markdown(f"<div style='text-align:center; font-weight:bold;'>⬅️ Página {st.session_state.pagina_atual} de {total_paginas} ➡️</div>", unsafe_allow_html=True)
 with col3:
