@@ -102,13 +102,13 @@ for idx, row in df_pagina.iterrows():
         f"📍 Onde está o produto ({row['DESCRIÇÃO']}):",
         ["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"],
         index=["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"].index(progresso["LOCAL INFORMADO"]) if progresso["LOCAL INFORMADO"] in ["SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"] else 0,
-        key=f"local_{chave}_{pagina}"
+        key=f"local_{chave}_{st.session_state.pagina_atual}"
     )
 
     validade = st.text_input(
         f"🗓️ Validade ({row['DESCRIÇÃO']}):",
         value=progresso["VALIDADE"],
-        key=f"validade_{chave}_{pagina}"
+        key=f"validade_{chave}_{st.session_state.pagina_atual}"
     )
 
     st.session_state.respostas_salvas[chave] = {
