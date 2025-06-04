@@ -167,18 +167,56 @@ st.session_state.pagina_atual = st.number_input(
     key="paginacao_rodape"
 )
 
-# Salvar localmente e mostrar botão para download
+# Salvar localmente
 df_temp = pd.DataFrame(respostas)
 df_temp.to_excel(progresso_path, index=False)
 st.toast("💾 Progresso salvo localmente.", icon="💾")
 
-with open(progresso_path, "rb") as f:
-    st.download_button(
-        label="📥 Baixar Relatório em Excel",
-        data=f,
-        file_name=f"relatorio_{pesquisa_limpa}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+# Exportar PDF com layout bonito
+def exportar_pdf(respostas):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", "B", 14)
+    pdf.cell(0, 10, f"Relatório de Pesquisa - {pesquisa_selecionada}", ln=True, align="C")
+
+    # Resumo
+    df_respostas = pd.DataFrame(respostas)
+    total = len(df_respostas)
+    respondidos = df_respostas[df_respostas["LOCAL INFORMADO"] != ""].shape[0]
+    nao_respondidos = total - respondidos
+    por_local = df_respostas["LOCAL INFORMADO"].value_counts()
+
+    pdf.set_font("Arial", "", 12)
+    pdf.ln(10)
+    pdf.cell(0, 10, f"Total de itens: {total}", ln=True)
+    pdf.cell(0, 10, f"Respondidos: {respondidos}", ln=True)
+    pdf.cell(0, 10, f"Não respondidos: {nao_respondidos}", ln=True)
+    for local, qtd in por_local.items():
+        pdf.cell(0, 10, f"{local}: {qtd}", ln=True)
+
+    pdf.ln(10)
+    pdf.set_font("Arial", "B", 12)
+    pdf.cell(0, 10, "Detalhamento por Produto", ln=True)
+    pdf.set_font("Arial", "", 10)
+
+    for r in respostas:
+        pdf.ln(5)
+        pdf.multi_cell(0, 5,
+            f"Produto: {r['DESCRIÇÃO']}\n"
+            f"EAN: {r['EAN']}\n"
+            f"Cód. Interno: {r['COD.INT']} | Estoque: {r['ESTOQUE']}\n"
+            f"Dias sem movimentação: {r['DIAS SEM MOVIMENTAÇÃO']} | Seção: {r['SEÇÃO']}\n"
+            f"Local Informado: {r['LOCAL INFORMADO']} | Validade: {r['VALIDADE']}"
+        )
+
+    caminho_pdf = f"/tmp/relatorio_{nome_limpo}_{pesquisa_limpa}.pdf"
+    pdf.output(caminho_pdf)
+    with open(caminho_pdf, "rb") as f:
+        pdf_data = f.read()
+
+    b64 = base64.b64encode(pdf_data).decode()
+    href = f'<a href="data:application/octet-stream;base64,{b64}" download="relatorio_{pesquisa_limpa}.pdf">📄 Baixar Relatório em PDF</a>'
+    st.markdown(href, unsafe_allow_html=True)
 
 # Botão salvar definitivo
 if st.button("📤 Enviar Respostas"):
@@ -205,5 +243,9 @@ if st.button("📤 Enviar Respostas"):
             aba_sheet.append_rows([list(r.values()) for r in valores])
 
         st.success("✅ Respostas enviadas com sucesso!")
+
+        # Exportar PDF ao final do envio
+        exportar_pdf(respostas)
+
     except Exception as e:
         st.error(f"Erro ao salvar no Google Sheets: {e}")
