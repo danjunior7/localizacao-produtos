@@ -192,13 +192,13 @@ def exportar_pdf(respostas):
     st.markdown(href, unsafe_allow_html=True)
 
 st.markdown("<hr>", unsafe_allow_html=True)
-st.markdown("<div style='text-align:center; font-weight:bold;'>Página:</div>", unsafe_allow_html=True)
-col1, col2, col3 = st.columns([1,2,1])
+
+col1, col2, col3 = st.columns([3, 3, 3])
 with col1:
     if st.button("⬅️ Anterior") and st.session_state.pagina_atual > 1:
         st.session_state.pagina_atual -= 1
 with col2:
-    st.markdown(f"<div style='text-align:center;'>Página {st.session_state.pagina_atual} de {total_paginas}</div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='text-align:center; font-weight:bold;'>⬅️ Página {st.session_state.pagina_atual} de {total_paginas} ➡️</div>", unsafe_allow_html=True)
 with col3:
     if st.button("Próxima ➡️") and st.session_state.pagina_atual < total_paginas:
         st.session_state.pagina_atual += 1
