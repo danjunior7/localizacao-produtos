@@ -79,8 +79,10 @@ itens_por_pagina = 20
 total_paginas = (len(df_filtrado) - 1) // itens_por_pagina + 1
 if "pagina_atual" not in st.session_state:
     st.session_state.pagina_atual = 1
-pagina = st.number_input("Página:", min_value=1, max_value=total_paginas, value=st.session_state.pagina_atual, step=1)
-st.session_state.pagina_atual = pagina
+
+inicio = (st.session_state.pagina_atual - 1) * itens_por_pagina
+fim = inicio + itens_por_pagina
+df_pagina = df_filtrado.iloc[inicio:fim]
 
 inicio = (pagina - 1) * itens_por_pagina
 fim = inicio + itens_por_pagina
@@ -192,6 +194,17 @@ def exportar_pdf(respostas):
     st.markdown(href, unsafe_allow_html=True)
 
 st.markdown("<hr>", unsafe_allow_html=True)
+st.markdown("<div style='text-align:center; font-weight:bold;'>
+Página:", unsafe_allow_html=True)
+col1, col2, col3 = st.columns([1,2,1])
+with col1:
+    if st.button("⬅️ Anterior") and st.session_state.pagina_atual > 1:
+        st.session_state.pagina_atual -= 1
+with col2:
+    st.markdown(f"<div style='text-align:center;'>Página {st.session_state.pagina_atual} de {total_paginas}</div>", unsafe_allow_html=True)
+with col3:
+    if st.button("Próxima ➡️") and st.session_state.pagina_atual < total_paginas:
+        st.session_state.pagina_atual += 1
 if st.button("📤 Enviar respostas para planilha e baixar PDF"):
     df_final = pd.DataFrame(respostas)
     df_final.to_excel(f"respostas_{pesquisa_limpa}.xlsx", index=False)
