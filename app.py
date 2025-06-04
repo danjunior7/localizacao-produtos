@@ -117,7 +117,12 @@ for idx, row in df_filtrado.iterrows():
         index=["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"].index(valor_inicial) if valor_inicial in ["SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"] else 0
     )
 
-    validade = st.text_input(f"📅 Validade ({row['DESCRIÇÃO']}):", value=validade_inicial, key=f"validade_{idx}")
+    validade = st.text_input(
+    f"📅 Validade ({row['DESCRIÇÃO']}):",
+    value="" if pd.isna(validade_inicial) else str(validade_inicial),
+    key=f"validade_{idx}"
+)
+
 
     respostas.append({
         "USUÁRIO": nome_usuario,
