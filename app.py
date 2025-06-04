@@ -95,26 +95,29 @@ for idx, row in df_pagina.iterrows():
     st.markdown(f"**📆 Dias sem movimentação:** {row.get('DIAS SEM MOVIMENTAÇÃO', '---')}")
     st.markdown(f"**📍 Seção:** {row.get('SEÇÃO', '---')}")
 
-    cod_int = str(row.get("COD.INT", f"vazio_{idx}")).strip()
-    progresso = st.session_state.respostas_salvas.get(cod_int, {})
+    cod_int = str(row.get("COD.INT", f"vazio_{idx}_{pagina}")).strip()
+    chave_local = f"local_{cod_int}_{idx}_{pagina}"
+    chave_validade = f"validade_{cod_int}_{idx}_{pagina}"
 
     local = st.selectbox(
         f"📍 Onde está o produto ({row['DESCRIÇÃO']}):",
         ["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"],
-        index=["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"].index(progresso.get("LOCAL INFORMADO", ""))
-        if progresso.get("LOCAL INFORMADO", "") in ["SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"] else 0,
-        key=f"local_{cod_int}_{idx}_{pagina}"
+        index=["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"].index(
+            st.session_state.get(chave_local, "")
+        ) if st.session_state.get(chave_local, "") in ["SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"] else 0,
+        key=chave_local
     )
 
     validade = st.text_input(
         f"📅 Validade ({row['DESCRIÇÃO']}):",
-        value=progresso.get("VALIDADE", ""),
-        key=f"validade_{cod_int}_{idx}_{pagina}"
+        value=st.session_state.get(chave_validade, ""),
+        key=chave_validade
     )
 
+    # Salvar individualmente o estado das respostas em memória
     st.session_state.respostas_salvas[cod_int] = {
-        "LOCAL INFORMADO": local,
-        "VALIDADE": validade
+        "LOCAL INFORMADO": st.session_state[chave_local],
+        "VALIDADE": st.session_state[chave_validade]
     }
 
 # Constrói dataframe consolidado
