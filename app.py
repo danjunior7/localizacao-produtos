@@ -59,7 +59,7 @@ if os.path.exists(progresso_path) and not st.session_state.respostas_salvas:
         for _, row in df_antigo.iterrows():
             cod = str(row["COD.INT"]).strip()
             st.session_state.respostas_salvas[cod] = {
-                "LOCAL INFORMADO": row["LOCAL INFORMADO"],
+                "LOCAL INFORMADO": row.get("LOCAL INFORMADO", ""),
                 "VALIDADE": row.get("VALIDADE", "")
             }
         st.info("🔄 Progresso anterior carregado automaticamente.")
@@ -96,28 +96,25 @@ for idx, row in df_pagina.iterrows():
     st.markdown(f"**📍 Seção:** {row.get('SEÇÃO', '---')}")
 
     cod_int = str(row.get("COD.INT", f"vazio_{idx}_{pagina}")).strip()
-    chave_local = f"local_{cod_int}_{idx}_{pagina}"
-    chave_validade = f"validade_{cod_int}_{idx}_{pagina}"
+    progresso = st.session_state.respostas_salvas.get(cod_int, {"LOCAL INFORMADO": "", "VALIDADE": ""})
 
     local = st.selectbox(
         f"📍 Onde está o produto ({row['DESCRIÇÃO']}):",
         ["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"],
-        index=["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"].index(
-            st.session_state.get(chave_local, "")
-        ) if st.session_state.get(chave_local, "") in ["SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"] else 0,
-        key=chave_local
+        index=["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"].index(progresso["LOCAL INFORMADO"]) if progresso["LOCAL INFORMADO"] in ["SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"] else 0,
+        key=f"local_{cod_int}_{idx}_{pagina}"
     )
 
     validade = st.text_input(
         f"📅 Validade ({row['DESCRIÇÃO']}):",
-        value=st.session_state.get(chave_validade, ""),
-        key=chave_validade
+        value=progresso["VALIDADE"],
+        key=f"validade_{cod_int}_{idx}_{pagina}"
     )
 
-    # Salvar individualmente o estado das respostas em memória
+    # Atualiza respostas salvas
     st.session_state.respostas_salvas[cod_int] = {
-        "LOCAL INFORMADO": st.session_state[chave_local],
-        "VALIDADE": st.session_state[chave_validade]
+        "LOCAL INFORMADO": local,
+        "VALIDADE": validade
     }
 
 # Constrói dataframe consolidado
