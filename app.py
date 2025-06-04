@@ -193,7 +193,7 @@ def exportar_pdf(respostas):
 
 st.markdown("<hr>", unsafe_allow_html=True)
 
-col1, col2, col3 = st.columns([2, 4, 2])
+col1, col2, col3 = st.columns([3, 2, 3])
 with col1:
     if st.button("⬅️ Anterior") and st.session_state.pagina_atual > 1:
         st.session_state.pagina_atual -= 1
