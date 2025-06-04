@@ -194,8 +194,7 @@ def exportar_pdf(respostas):
     st.markdown(href, unsafe_allow_html=True)
 
 st.markdown("<hr>", unsafe_allow_html=True)
-st.markdown("<div style='text-align:center; font-weight:bold;'>
-Página:", unsafe_allow_html=True)
+st.markdown("<div style='text-align:center; font-weight:bold;'>Página:</div>", unsafe_allow_html=True)
 col1, col2, col3 = st.columns([1,2,1])
 with col1:
     if st.button("⬅️ Anterior") and st.session_state.pagina_atual > 1:
