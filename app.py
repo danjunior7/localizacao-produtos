@@ -136,6 +136,11 @@ for _, row in df_filtrado.iterrows():
         "VALIDADE": progresso["VALIDADE"]
     })
 
+# Barra de progresso
+respondidos = sum([1 for r in respostas if r['LOCAL INFORMADO']])
+total = len(respostas)
+st.progress(respondidos / total if total else 0, text=f"Preenchido: {respondidos}/{total}")
+
 # Salva localmente
 pd.DataFrame(respostas).to_excel(progresso_path, index=False)
 st.toast("📅 Progresso salvo localmente.", icon="📅")
@@ -193,15 +198,17 @@ def exportar_pdf(respostas):
 
 st.markdown("<hr>", unsafe_allow_html=True)
 
-col1, col2, col3 = st.columns([2.5, 3, 2.5])
+col1, col2, col3 = st.columns([2, 3, 2])
 with col1:
     if st.button("⬅️ Anterior") and st.session_state.pagina_atual > 1:
         st.session_state.pagina_atual -= 1
+        st.experimental_rerun()
 with col2:
     st.markdown(f"<div style='text-align:center; font-weight:bold;'>⬅️ Página {st.session_state.pagina_atual} de {total_paginas} ➡️</div>", unsafe_allow_html=True)
 with col3:
     if st.button("Próxima ➡️") and st.session_state.pagina_atual < total_paginas:
         st.session_state.pagina_atual += 1
+        st.experimental_rerun()
 if st.button("📤 Enviar respostas para planilha e baixar PDF"):
     df_final = pd.DataFrame(respostas)
     df_final.to_excel(f"respostas_{pesquisa_limpa}.xlsx", index=False)
