@@ -86,7 +86,6 @@ if os.path.exists(progresso_path):
         st.warning("⚠️ Não foi possível carregar progresso anterior.")
 
 # Exibir os itens da pesquisa com paginação
-respostas = []
 df_filtrado = df[df["PESQUISA"] == pesquisa_selecionada].reset_index(drop=True)
 if df_filtrado.empty:
     st.warning("⚠️ Nenhum produto encontrado nesta pesquisa.")
@@ -101,18 +100,21 @@ total_paginas = (len(df_filtrado) - 1) // itens_por_pagina + 1
 if "pagina_atual" not in st.session_state:
     st.session_state.pagina_atual = 1
 
-st.session_state.pagina_atual = st.number_input(
+pagina = st.number_input(
     "Página:",
     min_value=1,
     max_value=total_paginas,
     value=st.session_state.pagina_atual,
     step=1,
-    key="paginacao_topo"
+    key="paginacao"
 )
+st.session_state.pagina_atual = pagina
 
-inicio = (st.session_state.pagina_atual - 1) * itens_por_pagina
+inicio = (pagina - 1) * itens_por_pagina
 fim = inicio + itens_por_pagina
 df_pagina = df_filtrado.iloc[inicio:fim]
+
+respostas = []
 
 for idx, row in df_pagina.iterrows():
     st.markdown("---")
@@ -131,14 +133,14 @@ for idx, row in df_pagina.iterrows():
     local = st.selectbox(
         f"📍 Onde está o produto ({row['DESCRIÇÃO']}):",
         ["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"],
-        key=f"local_{idx}",
+        key=f"local_{cod_int}",
         index=["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"].index(valor_inicial) if valor_inicial in ["SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"] else 0
     )
 
     validade = st.text_input(
         f"📅 Validade ({row['DESCRIÇÃO']}):",
         value=validade_inicial,
-        key=f"validade_{idx}"
+        key=f"validade_{cod_int}"
     )
 
     respostas.append({
@@ -156,16 +158,19 @@ for idx, row in df_pagina.iterrows():
         "VALIDADE": validade
     })
 
-# Paginação no final da página também (sincronizada)
+# Paginação no final (sincronizada)
 st.markdown("---")
-st.session_state.pagina_atual = st.number_input(
+pagina_baixo = st.number_input(
     "Página:",
     min_value=1,
     max_value=total_paginas,
     value=st.session_state.pagina_atual,
     step=1,
-    key="paginacao_rodape"
+    key="paginacao_baixo"
 )
+if pagina_baixo != st.session_state.pagina_atual:
+    st.session_state.pagina_atual = pagina_baixo
+    st.experimental_rerun()
 
 # Salvar localmente
 df_temp = pd.DataFrame(respostas)
@@ -243,8 +248,6 @@ if st.button("📤 Enviar Respostas"):
             aba_sheet.append_rows([list(r.values()) for r in valores])
 
         st.success("✅ Respostas enviadas com sucesso!")
-
-        # Exportar PDF ao final do envio
         exportar_pdf(respostas)
 
     except Exception as e:
