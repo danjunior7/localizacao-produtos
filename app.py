@@ -94,12 +94,23 @@ if df_filtrado.empty:
 
 st.subheader(f"📝 Pesquisa: {pesquisa_selecionada}")
 
-# Paginação
+# Paginação sincronizada
 itens_por_pagina = 20
 total_paginas = (len(df_filtrado) - 1) // itens_por_pagina + 1
-pagina_atual = st.number_input("Página:", min_value=1, max_value=total_paginas, value=1, step=1, key="paginacao_topo")
 
-inicio = (pagina_atual - 1) * itens_por_pagina
+if "pagina_atual" not in st.session_state:
+    st.session_state.pagina_atual = 1
+
+st.session_state.pagina_atual = st.number_input(
+    "Página:",
+    min_value=1,
+    max_value=total_paginas,
+    value=st.session_state.pagina_atual,
+    step=1,
+    key="paginacao_topo"
+)
+
+inicio = (st.session_state.pagina_atual - 1) * itens_por_pagina
 fim = inicio + itens_por_pagina
 df_pagina = df_filtrado.iloc[inicio:fim]
 
@@ -145,9 +156,16 @@ for idx, row in df_pagina.iterrows():
         "VALIDADE": validade
     })
 
-# Paginação no final da página também
+# Paginação no final da página também (sincronizada)
 st.markdown("---")
-st.number_input("Página:", min_value=1, max_value=total_paginas, value=pagina_atual, step=1, key="paginacao_rodape")
+st.session_state.pagina_atual = st.number_input(
+    "Página:",
+    min_value=1,
+    max_value=total_paginas,
+    value=st.session_state.pagina_atual,
+    step=1,
+    key="paginacao_rodape"
+)
 
 # Salvar localmente e mostrar botão para download
 df_temp = pd.DataFrame(respostas)
