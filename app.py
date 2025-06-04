@@ -5,6 +5,7 @@ import os
 import gspread
 from google.oauth2.service_account import Credentials
 import re
+from fpdf import FPDF
 
 # Configuração da página
 st.set_page_config(
@@ -13,7 +14,7 @@ st.set_page_config(
     initial_sidebar_state="auto"
 )
 
-# CSS para menu responsivo (oculto no celular, sempre visível no PC)
+# CSS para menu responsivo
 st.markdown("""
     <style>
     @media (max-width: 768px) {
@@ -55,21 +56,12 @@ if "PESQUISA" not in df.columns:
 
 # Pesquisa
 pesquisas = sorted(df["PESQUISA"].dropna().unique())
-options = []
-mapa = {}
-
-for pesq in pesquisas:
-    label = f"{pesq}"
-    options.append(label)
-    mapa[label] = pesq
-
-st.subheader("🔍 Selecione a pesquisa")
-selecionado = st.selectbox("Escolha a pesquisa:", options)
-pesquisa_selecionada = mapa[selecionado]
+selecionado = st.selectbox("🔍 Escolha a pesquisa:", pesquisas)
+pesquisa_selecionada = selecionado
 
 # Caminho do progresso salvo
-nome_limpo = re.sub(r'\W+', '_', nome_usuario.strip())
-pesquisa_limpa = re.sub(r'\W+', '_', pesquisa_selecionada.strip())
+nome_limpo = re.sub(r'\W+', '_', nome_usuario)
+pesquisa_limpa = re.sub(r'\W+', '_', pesquisa_selecionada)
 progresso_path = f"/tmp/progresso_{nome_limpo}_{pesquisa_limpa}.xlsx"
 
 # Carrega progresso salvo se existir
@@ -78,7 +70,7 @@ if os.path.exists(progresso_path):
     try:
         df_antigo = pd.read_excel(progresso_path)
         for _, row in df_antigo.iterrows():
-            progresso_antigo[row["COD.INT"]] = row["LOCAL INFORMADO"]
+            progresso_antigo[row["COD.INT"]] = (row["LOCAL INFORMADO"], row.get("VALIDADE", ""))
         st.info("🔄 Progresso anterior carregado automaticamente.")
     except:
         st.warning("⚠️ Não foi possível carregar progresso anterior.")
@@ -103,14 +95,16 @@ for idx, row in df_filtrado.iterrows():
     st.markdown(f"**📍 Seção:** {row.get('SEÇÃO', '---')}")
 
     local_key = f"local_{idx}"
-    valor_inicial = progresso_antigo.get(row.get("COD.INT", ""), "")
+    validade_key = f"validade_{idx}"
 
+    valor_inicial, validade_inicial = progresso_antigo.get(row.get("COD.INT", ""), ("", ""))
     local = st.selectbox(
         f"📍 Onde está o produto ({row['DESCRIÇÃO']}):",
         ["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"],
         key=local_key,
         index=["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"].index(valor_inicial) if valor_inicial in ["SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"] else 0
     )
+    validade = st.text_input(f"📅 Validade do produto ({row['DESCRIÇÃO']}):", value=validade_inicial, key=validade_key)
 
     respostas.append({
         "USUÁRIO": nome_usuario,
@@ -123,28 +117,66 @@ for idx, row in df_filtrado.iterrows():
         "ESTOQUE": row.get("ESTOQUE", ""),
         "DIAS SEM MOVIMENTAÇÃO": row.get("DIAS SEM MOVIMENTAÇÃO", ""),
         "SEÇÃO": row.get("SEÇÃO", ""),
-        "LOCAL INFORMADO": local
+        "LOCAL INFORMADO": local,
+        "VALIDADE": validade
     })
 
-# Salva o progresso automaticamente localmente
+# Salva localmente
 df_temp = pd.DataFrame(respostas)
 df_temp.to_excel(progresso_path, index=False)
 st.toast("💾 Progresso salvo localmente (automático).", icon="💾")
 
+# Botão para exportar PDF
+def gerar_pdf(df):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", "B", 14)
+    pdf.cell(0, 10, f"Relatório da Pesquisa: {pesquisa_selecionada}", ln=True)
+
+    total = len(df)
+    respondidos = df["LOCAL INFORMADO"].apply(lambda x: x.strip() != "").sum()
+    nao_respondidos = total - respondidos
+    locais = df["LOCAL INFORMADO"].value_counts().to_dict()
+
+    pdf.set_font("Arial", "", 12)
+    pdf.ln(5)
+    pdf.multi_cell(0, 8, f"Usuário: {nome_usuario}\nData: {data_preenchimento.strftime('%d/%m/%Y')}\n"
+                         f"Total de Itens: {total}\nRespondidos: {respondidos}\nNão Respondidos: {nao_respondidos}")
+    for local, qtd in locais.items():
+        pdf.cell(0, 8, f"{local}: {qtd}", ln=True)
+
+    pdf.ln(10)
+    pdf.set_font("Arial", "B", 12)
+    pdf.cell(0, 10, "Detalhamento", ln=True)
+    pdf.set_font("Arial", "", 10)
+
+    for _, row in df.iterrows():
+        pdf.cell(0, 8, f"Produto: {row['DESCRIÇÃO']}", ln=True)
+        pdf.cell(0, 8, f"EAN: {row['EAN']} | Cód.Int: {row['COD.INT']}", ln=True)
+        pdf.cell(0, 8, f"Local: {row['LOCAL INFORMADO']} | Validade: {row['VALIDADE']}", ln=True)
+        pdf.ln(5)
+
+    return pdf.output(dest='S').encode('latin-1')
+
+with st.expander("📄 Exportar PDF"):
+    if st.button("📤 Baixar PDF"):
+        pdf_bytes = gerar_pdf(pd.DataFrame(respostas))
+        st.download_button(
+            label="📥 Clique aqui para baixar o PDF",
+            data=pdf_bytes,
+            file_name=f"relatorio_{nome_limpo}_{pesquisa_limpa}.pdf",
+            mime="application/pdf"
+        )
+
 # Função para salvar no Google Sheets
 def salvar_google_sheets(respostas):
     try:
-        scopes = [
-            'https://www.googleapis.com/auth/spreadsheets',
-            'https://www.googleapis.com/auth/drive'
-        ]
+        scopes = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
         creds_dict = dict(st.secrets["google_service_account"])
         creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
         client = gspread.authorize(creds)
 
         planilha = client.open("Respostas Pesquisa")
-
-        # Agrupa respostas por aba (loja)
         abas_dict = {}
         for resposta in respostas:
             nome_aba = resposta.get("LOJA", "Sem Loja")
@@ -152,27 +184,21 @@ def salvar_google_sheets(respostas):
                 abas_dict[nome_aba] = []
             abas_dict[nome_aba].append(resposta)
 
-        # Escreve em cada aba de forma otimizada
         for nome_aba, respostas_da_aba in abas_dict.items():
             try:
                 aba = planilha.worksheet(nome_aba)
             except gspread.exceptions.WorksheetNotFound:
                 aba = planilha.add_worksheet(title=nome_aba, rows="1000", cols="20")
-                aba.append_row(list(respostas_da_aba[0].keys()))  # Cabeçalho
-
+                aba.append_row(list(respostas_da_aba[0].keys()))
             linhas = [list(resp.values()) for resp in respostas_da_aba]
             aba.append_rows(linhas)
 
         st.success("✅ Respostas enviadas para o Google Sheets com sucesso!")
-
     except Exception as e:
         st.error(f"Erro ao salvar no Google Sheets: {e}")
 
-
-# Botão de envio final
 if st.button("📅 Salvar respostas"):
     df_novas = pd.DataFrame(respostas)
-
     RESP_ARQ = "respostas.xlsx"
     if os.path.exists(RESP_ARQ):
         with pd.ExcelWriter(RESP_ARQ, engine='openpyxl', mode='a', if_sheet_exists='overlay') as writer:
