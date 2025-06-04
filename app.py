@@ -36,12 +36,15 @@ st.title("📦 Localização de Produtos nas Lojas")
 
 # Identificação
 st.subheader("👤 Identificação")
-nome_usuario = st.text_input("Digite seu nome:").strip()
-data_preenchimento = st.date_input("Data de preenchimento:", value=datetime.date.today(), format="DD/MM/YYYY")
+
+usuarios_padrao = ["Daniel Ramos", "Wislley"]
+nome_usuario = st.selectbox("Selecione seu nome:", [""] + usuarios_padrao)
 
 if not nome_usuario:
-    st.warning("⚠️ Por favor, digite seu nome para continuar.")
+    st.warning("⚠️ Por favor, selecione seu nome para continuar.")
     st.stop()
+
+data_preenchimento = st.date_input("Data de preenchimento:", value=datetime.date.today(), format="DD/MM/YYYY")
 
 # Carrega dados
 try:
