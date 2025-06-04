@@ -97,7 +97,7 @@ st.subheader(f"📝 Pesquisa: {pesquisa_selecionada}")
 # Paginação
 itens_por_pagina = 20
 total_paginas = (len(df_filtrado) - 1) // itens_por_pagina + 1
-pagina_atual = st.number_input("Página:", min_value=1, max_value=total_paginas, value=1, step=1)
+pagina_atual = st.number_input("Página:", min_value=1, max_value=total_paginas, value=1, step=1, key="paginacao_topo")
 
 inicio = (pagina_atual - 1) * itens_por_pagina
 fim = inicio + itens_por_pagina
@@ -145,7 +145,47 @@ for idx, row in df_pagina.iterrows():
         "VALIDADE": validade
     })
 
-# Salvar localmente
+# Paginação no final da página também
+st.markdown("---")
+st.number_input("Página:", min_value=1, max_value=total_paginas, value=pagina_atual, step=1, key="paginacao_rodape")
+
+# Salvar localmente e mostrar botão para download
 df_temp = pd.DataFrame(respostas)
 df_temp.to_excel(progresso_path, index=False)
 st.toast("💾 Progresso salvo localmente.", icon="💾")
+
+with open(progresso_path, "rb") as f:
+    st.download_button(
+        label="📥 Baixar Relatório em Excel",
+        data=f,
+        file_name=f"relatorio_{pesquisa_limpa}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+# Botão salvar definitivo
+if st.button("📤 Enviar Respostas"):
+    try:
+        scopes = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
+        creds_dict = dict(st.secrets["google_service_account"])
+        creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+        client = gspread.authorize(creds)
+
+        planilha = client.open("Respostas Pesquisa")
+        abas_dict = {}
+        for resposta in respostas:
+            aba = resposta.get("LOJA", "Sem Loja")
+            if aba not in abas_dict:
+                abas_dict[aba] = []
+            abas_dict[aba].append(resposta)
+
+        for aba, valores in abas_dict.items():
+            try:
+                aba_sheet = planilha.worksheet(aba)
+            except:
+                aba_sheet = planilha.add_worksheet(title=aba, rows="1000", cols="20")
+                aba_sheet.append_row(list(valores[0].keys()))
+            aba_sheet.append_rows([list(r.values()) for r in valores])
+
+        st.success("✅ Respostas enviadas com sucesso!")
+    except Exception as e:
+        st.error(f"Erro ao salvar no Google Sheets: {e}")
