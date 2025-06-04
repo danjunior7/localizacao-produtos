@@ -85,7 +85,7 @@ if os.path.exists(progresso_path):
     except:
         st.warning("⚠️ Não foi possível carregar progresso anterior.")
 
-# Exibir os itens da pesquisa
+# Exibir os itens da pesquisa com paginação
 respostas = []
 df_filtrado = df[df["PESQUISA"] == pesquisa_selecionada].reset_index(drop=True)
 if df_filtrado.empty:
@@ -93,9 +93,19 @@ if df_filtrado.empty:
     st.stop()
 
 st.subheader(f"📝 Pesquisa: {pesquisa_selecionada}")
-for idx, row in df_filtrado.iterrows():
+
+# Paginação
+itens_por_pagina = 20
+total_paginas = (len(df_filtrado) - 1) // itens_por_pagina + 1
+pagina_atual = st.number_input("Página:", min_value=1, max_value=total_paginas, value=1, step=1)
+
+inicio = (pagina_atual - 1) * itens_por_pagina
+fim = inicio + itens_por_pagina
+df_pagina = df_filtrado.iloc[inicio:fim]
+
+for idx, row in df_pagina.iterrows():
     st.markdown("---")
-    st.markdown(f"**🏥 Produto:** {row['DESCRIÇÃO']}")
+    st.markdown(f"**🛍️ Produto:** {row['DESCRIÇÃO']}")
     st.markdown(f"**🏷️ EAN:** {row.get('EAN', '---')}")
     st.markdown(f"**🔢 Código Interno:** {row.get('COD.INT', '---')}")
     st.markdown(f"**📦 Estoque:** {row.get('ESTOQUE', '---')}")
@@ -115,7 +125,7 @@ for idx, row in df_filtrado.iterrows():
     )
 
     validade = st.text_input(
-        f"🗓️ Validade ({row['DESCRIÇÃO']}):",
+        f"📅 Validade ({row['DESCRIÇÃO']}):",
         value=validade_inicial,
         key=f"validade_{idx}"
     )
@@ -135,12 +145,7 @@ for idx, row in df_filtrado.iterrows():
         "VALIDADE": validade
     })
 
-# Salva localmente
+# Salvar localmente
 df_temp = pd.DataFrame(respostas)
 df_temp.to_excel(progresso_path, index=False)
-st.toast("📀 Progresso salvo localmente.", icon="📀")
-
-# Exporta PDF (mantido igual)
-# Exporta para Google Sheets (mantido igual)
-# Salva em Excel final (mantido igual)
-# [Opcional: você pode colar a parte do botão final aqui caso queira completar]
+st.toast("💾 Progresso salvo localmente.", icon="💾")
