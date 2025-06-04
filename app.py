@@ -84,9 +84,7 @@ inicio = (st.session_state.pagina_atual - 1) * itens_por_pagina
 fim = inicio + itens_por_pagina
 df_pagina = df_filtrado.iloc[inicio:fim]
 
-inicio = (pagina - 1) * itens_por_pagina
-fim = inicio + itens_por_pagina
-df_pagina = df_filtrado.iloc[inicio:fim]
+
 
 for idx, row in df_pagina.iterrows():
     st.markdown("---")
