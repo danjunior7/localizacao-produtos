@@ -1,4 +1,7 @@
-...
+# Botões de envio e exportação no final
+import pandas as pd
+import base64
+from fpdf import FPDF
 
 # Botões de envio e exportação no final
 def exportar_pdf(respostas):
@@ -51,7 +54,7 @@ def exportar_pdf(respostas):
     href = f'<a href="data:application/octet-stream;base64,{b64}" download="relatorio_{pesquisa_limpa}.pdf">📄 Baixar Relatório em PDF</a>'
     st.markdown(href, unsafe_allow_html=True)
 
-st.markdown("---")
+st.markdown("\n---")
 if st.button("📤 Enviar respostas para planilha e baixar PDF"):
     df_final = pd.DataFrame(respostas)
     df_final.to_excel(f"respostas_{pesquisa_limpa}.xlsx", index=False)
