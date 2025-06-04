@@ -57,7 +57,7 @@ if os.path.exists(progresso_path) and not st.session_state.respostas_salvas:
     try:
         df_antigo = pd.read_excel(progresso_path)
         for _, row in df_antigo.iterrows():
-            cod = str(row["COD.INT"])
+            cod = str(row["COD.INT"]).strip()
             st.session_state.respostas_salvas[cod] = {
                 "LOCAL INFORMADO": row["LOCAL INFORMADO"],
                 "VALIDADE": row.get("VALIDADE", "")
@@ -95,7 +95,7 @@ for idx, row in df_pagina.iterrows():
     st.markdown(f"**📆 Dias sem movimentação:** {row.get('DIAS SEM MOVIMENTAÇÃO', '---')}")
     st.markdown(f"**📍 Seção:** {row.get('SEÇÃO', '---')}")
 
-    cod_int = str(row.get("COD.INT", f"vazio_{idx}"))
+    cod_int = str(row.get("COD.INT", f"vazio_{idx}")).strip()
     progresso = st.session_state.respostas_salvas.get(cod_int, {})
 
     local = st.selectbox(
@@ -103,16 +103,15 @@ for idx, row in df_pagina.iterrows():
         ["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"],
         index=["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"].index(progresso.get("LOCAL INFORMADO", ""))
         if progresso.get("LOCAL INFORMADO", "") in ["SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"] else 0,
-        key=f"local_{cod_int}_{idx}"
+        key=f"local_{cod_int}_{idx}_{pagina}"
     )
 
     validade = st.text_input(
         f"📅 Validade ({row['DESCRIÇÃO']}):",
         value=progresso.get("VALIDADE", ""),
-        key=f"validade_{cod_int}_{idx}"
+        key=f"validade_{cod_int}_{idx}_{pagina}"
     )
 
-    # Salva na sessão
     st.session_state.respostas_salvas[cod_int] = {
         "LOCAL INFORMADO": local,
         "VALIDADE": validade
@@ -121,7 +120,7 @@ for idx, row in df_pagina.iterrows():
 # Constrói dataframe consolidado
 respostas = []
 for _, row in df_filtrado.iterrows():
-    cod = str(row["COD.INT"])
+    cod = str(row["COD.INT"]).strip()
     progresso = st.session_state.respostas_salvas.get(cod, {"LOCAL INFORMADO": "", "VALIDADE": ""})
     respostas.append({
         "USUÁRIO": nome_usuario,
