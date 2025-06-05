@@ -208,7 +208,7 @@ with col2:
 with col3:
     if st.button("Próxima ➡️") and st.session_state.pagina_atual < total_paginas:
         st.session_state.pagina_atual += 1
-        st.experimental_rerun()
+        st.rerun()
 if st.button("📤 Enviar respostas para planilha e baixar PDF"):
     df_final = pd.DataFrame(respostas)
     df_final.to_excel(f"respostas_{pesquisa_limpa}.xlsx", index=False)
