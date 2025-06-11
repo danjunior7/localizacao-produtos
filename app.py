@@ -2,17 +2,11 @@ import streamlit as st
 import pandas as pd
 import datetime
 import os
-import gspread
-from google.oauth2.service_account import Credentials
 import re
 from fpdf import FPDF
 import base64
 
-st.set_page_config(
-    page_title="Localização de Produtos",
-    layout="wide",
-    initial_sidebar_state="auto"
-)
+st.set_page_config(page_title="Localização de Produtos", layout="wide")
 
 st.title("📦 Localização de Produtos nas Lojas")
 
@@ -26,95 +20,168 @@ if not nome_usuario:
 
 data_preenchimento = st.date_input("Data de preenchimento:", value=datetime.date.today(), format="DD/MM/YYYY")
 
-# Caminho do progresso local temporário
-arquivo_progresso = f"/tmp/progresso_{nome_usuario}.xlsx"
+# Carrega dados
+df = pd.read_excel("Feedback_Localizacao.xlsx")
+if "PESQUISA" not in df.columns:
+    st.error("❌ A planilha precisa da coluna 'PESQUISA'.")
+    st.stop()
 
-# Carregar dados
-if os.path.exists(arquivo_progresso):
-    df = pd.read_excel(arquivo_progresso)
-else:
-    df = pd.read_excel("Feedback_Localizacao.xlsx")
-    df["Local Informado"] = ""
-    df["Validade"] = ""
+# Pesquisa
+pesquisas = sorted(df["PESQUISA"].dropna().unique())
+mapa = {str(p): p for p in pesquisas}
 
-# Navegação
-st.subheader("🔍 Produtos para Localização")
-if "pagina_atual" not in st.session_state:
-    st.session_state.pagina_atual = 0
+st.subheader("🔍 Selecione a pesquisa")
+opcoes_selectbox = [""] + list(mapa.keys())
+selecionado = st.selectbox("Escolha a pesquisa:", opcoes_selectbox)
+if not selecionado:
+    st.warning("⚠️ Por favor, selecione uma pesquisa.")
+    st.stop()
 
-produtos_por_pagina = 1
-inicio = st.session_state.pagina_atual * produtos_por_pagina
-fim = inicio + produtos_por_pagina
-pagina_df = df.iloc[inicio:fim]
+pesquisa_selecionada = mapa[selecionado]
+nome_limpo = re.sub(r'\W+', '_', nome_usuario.strip())
+pesquisa_limpa = re.sub(r'\W+', '_', pesquisa_selecionada.strip())
+progresso_path = f"/tmp/progresso_{nome_limpo}_{pesquisa_limpa}.xlsx"
 
-if not pagina_df.empty:
-    for i, r in pagina_df.iterrows():
-        st.markdown(f"### 🛒 Produto: {r['DESCRICAO PRODUTO']}")
-        st.markdown(
-            f"EAN: {r['EAN']} | Estoque: {r['ESTOQUE']} | Dias s/ mov: {r['DIAS SEM MOVIMENTAÇÃO']}"
-        )
-        local = st.text_input(f"Informe o local do produto (ID: {r['ID']}):", value=r["Local Informado"], key=f"local_{i}")
-        validade = st.text_input(f"Validade (se aplicável):", value=r["Validade"], key=f"validade_{i}")
+# Inicializa progresso em memória
+if "respostas_salvas" not in st.session_state:
+    st.session_state.respostas_salvas = {}
 
-        df.at[i, "Local Informado"] = local
-        df.at[i, "Validade"] = validade
+# Carrega progresso salvo do arquivo
+if os.path.exists(progresso_path) and not st.session_state.respostas_salvas:
+    try:
+        df_antigo = pd.read_excel(progresso_path)
+        for _, row in df_antigo.iterrows():
+            chave = f"{row['COD.INT']}|{row['DESCRIÇÃO']}"
+            st.session_state.respostas_salvas[chave] = {
+                "LOCAL INFORMADO": row.get("LOCAL INFORMADO", ""),
+                "VALIDADE": row.get("VALIDADE", "")
+            }
+        st.info("🔄 Progresso anterior carregado automaticamente.")
+    except:
+        st.warning("⚠️ Não foi possível carregar progresso anterior.")
 
-# Botões de navegação
-col1, col2, col3 = st.columns(3)
-with col1:
-    if st.button("⬅️ Voltar") and st.session_state.pagina_atual > 0:
-        st.session_state.pagina_atual -= 1
-with col2:
-    st.write(f"Página {st.session_state.pagina_atual + 1} de {((len(df)-1)//produtos_por_pagina)+1}")
-with col3:
-    if st.button("➡️ Avançar") and fim < len(df):
-        st.session_state.pagina_atual += 1
+# Filtro da pesquisa
+df_filtrado = df[df["PESQUISA"] == pesquisa_selecionada].reset_index(drop=True)
+if df_filtrado.empty:
+    st.warning("⚠️ Nenhum produto encontrado nesta pesquisa.")
+    st.stop()
 
-# Salvamento automático
-df.to_excel(arquivo_progresso, index=False)
+st.subheader(f"📝 Pesquisa: {pesquisa_selecionada}")
 
-# Resumo no topo para PDF
-def gerar_resumo_respostas(df):
-    total = len(df)
-    respondidos = df["Local Informado"].astype(str).str.strip().replace("nan", "").replace("None", "").ne("").sum()
-    nao_respondidos = total - respondidos
-    locais_distintos = df["Local Informado"].dropna().unique()
-    return total, respondidos, nao_respondidos, locais_distintos
+# Loop sem paginação
+for idx, row in df_filtrado.iterrows():
+    st.markdown("---")
+    st.markdown(f"**🛍️ Produto:** {row['DESCRIÇÃO']}")
+    st.markdown(f"**🏷️ EAN:** {row.get('EAN', '---')}")
+    st.markdown(f"**🔢 Código Interno:** {row.get('COD.INT', '---')}")
+    st.markdown(f"**📦 Estoque:** {row.get('ESTOQUE', '---')}")
+    st.markdown(f"**🗖️ Dias sem movimentação:** {row.get('DIAS SEM MOVIMENTAÇÃO', '---')}")
+    st.markdown(f"**📍 Seção:** {row.get('SEÇÃO', '---')}")
 
-# Exportar para PDF
-def exportar_pdf():
-    total, respondidos, nao_respondidos, locais = gerar_resumo_respostas(df)
+    chave = f"{row.get('COD.INT', idx)}|{row.get('DESCRIÇÃO', '')}"
+    progresso = st.session_state.respostas_salvas.get(chave, {"LOCAL INFORMADO": "", "VALIDADE": ""})
 
+    local = st.selectbox(
+        f"📍 Onde está o produto ({row['DESCRIÇÃO']}):",
+        ["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"],
+        index=["", "SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"].index(progresso["LOCAL INFORMADO"]) if progresso["LOCAL INFORMADO"] in ["SEÇÃO", "DEPÓSITO", "ERRO DE ESTOQUE"] else 0,
+        key=f"local_{chave}"
+    )
+
+    validade = st.text_input(
+        f"🗓️ Validade ({row['DESCRIÇÃO']}):",
+        value=progresso["VALIDADE"],
+        key=f"validade_{chave}"
+    )
+
+    st.session_state.respostas_salvas[chave] = {
+        "LOCAL INFORMADO": local,
+        "VALIDADE": validade
+    }
+
+# Constrói dataframe consolidado
+respostas = []
+for _, row in df_filtrado.iterrows():
+    chave = f"{row.get('COD.INT', '')}|{row.get('DESCRIÇÃO', '')}"
+    progresso = st.session_state.respostas_salvas.get(chave, {"LOCAL INFORMADO": "", "VALIDADE": ""})
+    respostas.append({
+        "USUÁRIO": nome_usuario,
+        "DATA": data_preenchimento.strftime('%d/%m/%Y'),
+        "PESQUISA": pesquisa_selecionada,
+        "LOJA": row.get("LOJA", ""),
+        "DESCRIÇÃO": row.get("DESCRIÇÃO", ""),
+        "COD.INT": row.get("COD.INT", ""),
+        "EAN": row.get("EAN", ""),
+        "ESTOQUE": row.get("ESTOQUE", ""),
+        "DIAS SEM MOVIMENTAÇÃO": row.get("DIAS SEM MOVIMENTAÇÃO", ""),
+        "SEÇÃO": row.get("SEÇÃO", ""),
+        "LOCAL INFORMADO": progresso["LOCAL INFORMADO"],
+        "VALIDADE": progresso["VALIDADE"]
+    })
+
+# Barra de progresso
+respondidos = sum([1 for r in respostas if r['LOCAL INFORMADO']])
+total = len(respostas)
+st.progress(respondidos / total if total else 0, text=f"Preenchido: {respondidos}/{total}")
+
+# Salva localmente
+pd.DataFrame(respostas).to_excel(progresso_path, index=False)
+st.toast("📅 Progresso salvo localmente.", icon="📅")
+
+# Botão de exportar
+def exportar_pdf(respostas):
     pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
-    pdf.set_font("Arial", 'B', 14)
-    pdf.cell(0, 10, "Relatório de Localização de Produtos", ln=True, align="C")
-    pdf.ln(10)
+    pdf.set_font("Arial", "B", 16)
+    pdf.cell(0, 10, f"Relatório de Pesquisa - {pesquisa_selecionada}", ln=True, align="C")
 
-    pdf.set_font("Arial", '', 12)
-    pdf.cell(0, 10, f"Usuário: {nome_usuario}", ln=True)
-    pdf.cell(0, 10, f"Data de preenchimento: {data_preenchimento.strftime('%d/%m/%Y')}", ln=True)
-    pdf.cell(0, 10, f"Total de produtos: {total}", ln=True)
-    pdf.cell(0, 10, f"Respondidos: {respondidos}", ln=True)
-    pdf.cell(0, 10, f"Não respondidos: {nao_respondidos}", ln=True)
-    pdf.cell(0, 10, f"Locais distintos informados: {', '.join(map(str, locais))}", ln=True)
-    pdf.ln(10)
+    df_respostas = pd.DataFrame(respostas)
+    total = len(df_respostas)
+    respondidos = df_respostas[df_respostas["LOCAL INFORMADO"] != ""].shape[0]
+    nao_respondidos = total - respondidos
+    por_local = df_respostas["LOCAL INFORMADO"].value_counts()
 
-    for _, row in df.iterrows():
-        pdf.set_font("Arial", 'B', 12)
-        pdf.cell(0, 10, f"Produto: {row['DESCRICAO PRODUTO']}", ln=True)
-        pdf.set_font("Arial", '', 11)
-        pdf.cell(0, 8, f"EAN: {row['EAN']} | Estoque: {row['ESTOQUE']} | Dias s/ mov: {row['DIAS SEM MOVIMENTAÇÃO']}", ln=True)
-        pdf.cell(0, 8, f"Local Informado: {row['Local Informado']}", ln=True)
-        pdf.cell(0, 8, f"Validade: {row['Validade']}", ln=True)
-        pdf.ln(5)
+    pdf.ln(5)
+    pdf.set_font("Arial", "", 12)
+    pdf.cell(0, 8, f"Total de itens: {total}", ln=True)
+    pdf.cell(0, 8, f"Respondidos: {respondidos}", ln=True)
+    pdf.cell(0, 8, f"Não respondidos: {nao_respondidos}", ln=True)
 
-    pdf_bytes = pdf.output(dest='S').encode('latin1')
-    b64 = base64.b64encode(pdf_bytes).decode()
-    href = f'<a href="data:application/octet-stream;base64,{b64}" download="relatorio_localizacao.pdf">📄 Clique aqui para baixar o PDF</a>'
+    pdf.ln(5)
+    pdf.set_font("Arial", "B", 12)
+    pdf.cell(0, 8, "Resumo por Local Informado:", ln=True)
+    pdf.set_font("Arial", "", 11)
+    for local, qtd in por_local.items():
+        nome = local if local else "Não informado"
+        pdf.cell(0, 8, f"{nome}: {qtd}", ln=True)
+
+    pdf.ln(5)
+    pdf.set_font("Arial", "B", 12)
+    pdf.cell(0, 10, "Detalhamento por Produto", ln=True)
+    pdf.set_font("Arial", "", 10)
+
+    for r in respostas:
+        pdf.ln(3)
+        pdf.set_font("Arial", "B", 10)
+        pdf.multi_cell(0, 6, f"{r['DESCRIÇÃO']} ({r['COD.INT']})")
+        pdf.set_font("Arial", "", 9)
+        pdf.multi_cell(0, 5,
+            f"EAN: {r['EAN']} | Estoque: {r['ESTOQUE']} | Dias s/ mov: {r['DIAS SEM MOVIMENTAÇÃO']}\n"
+            f"Seção: {r['SEÇÃO']} | Local: {r['LOCAL INFORMADO']} | Validade: {r['VALIDADE']}"
+        )
+
+    caminho_pdf = f"/tmp/relatorio_{nome_limpo}_{pesquisa_limpa}.pdf"
+    pdf.output(caminho_pdf)
+    with open(caminho_pdf, "rb") as f:
+        pdf_data = f.read()
+
+    b64 = base64.b64encode(pdf_data).decode()
+    href = f'<a href="data:application/octet-stream;base64,{b64}" download="relatorio_{pesquisa_limpa}.pdf">📄 Baixar Relatório em PDF</a>'
     st.markdown(href, unsafe_allow_html=True)
 
-st.markdown("---")
-if st.button("📤 Exportar Respostas em PDF"):
-    exportar_pdf()
+# Botão final
+if st.button("📤 Enviar respostas para planilha e baixar PDF"):
+    df_final = pd.DataFrame(respostas)
+    df_final.to_excel(f"respostas_{pesquisa_limpa}.xlsx", index=False)
+    exportar_pdf(respostas)
+    st.success("✅ Respostas salvas e PDF gerado com sucesso!")
