@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import datetime
@@ -84,8 +85,6 @@ inicio = (st.session_state.pagina_atual - 1) * itens_por_pagina
 fim = inicio + itens_por_pagina
 df_pagina = df_filtrado.iloc[inicio:fim]
 
-
-
 for idx, row in df_pagina.iterrows():
     st.markdown("---")
     st.markdown(f"**🛍️ Produto:** {row['DESCRIÇÃO']}")
@@ -145,7 +144,6 @@ st.progress(respondidos / total if total else 0, text=f"Preenchido: {respondidos
 pd.DataFrame(respostas).to_excel(progresso_path, index=False)
 st.toast("📅 Progresso salvo localmente.", icon="📅")
 
-# Botões de envio e exportação no final
 def exportar_pdf(respostas):
     pdf = FPDF()
     pdf.add_page()
@@ -183,7 +181,8 @@ def exportar_pdf(respostas):
         pdf.multi_cell(0, 6, f"{r['DESCRIÇÃO']} ({r['COD.INT']})")
         pdf.set_font("Arial", "", 9)
         pdf.multi_cell(0, 5,
-            f"EAN: {r['EAN']} | Estoque: {r['ESTOQUE']} | Dias s/ mov: {r['DIAS SEM MOVIMENTAÇÃO']}\n"
+            f"EAN: {r['EAN']} | Estoque: {r['ESTOQUE']} | Dias s/ mov: {r['DIAS SEM MOVIMENTAÇÃO']}
+"
             f"Seção: {r['SEÇÃO']} | Local: {r['LOCAL INFORMADO']} | Validade: {r['VALIDADE']}"
         )
 
@@ -207,8 +206,9 @@ with col2:
     st.markdown(f"<div style='text-align:center; font-weight:bold;'>⬅️ Página {st.session_state.pagina_atual} de {total_paginas} ➡️</div>", unsafe_allow_html=True)
 with col3:
     if st.button("Próxima ➡️") and st.session_state.pagina_atual < total_paginas:
-    st.session_state.pagina_atual += 1
-    st.rerun()
+        st.session_state.pagina_atual += 1
+        st.rerun()
+
 if st.button("📤 Enviar respostas para planilha e baixar PDF"):
     df_final = pd.DataFrame(respostas)
     df_final.to_excel(f"respostas_{pesquisa_limpa}.xlsx", index=False)
